@@ -1,0 +1,47 @@
+// Video Class-Specific VC Interface Descriptor Subtypes
+#define VC_DESCRIPTOR_UNDEFINED 0x00
+#define VC_HEADER 0x01
+#define VC_INPUT_TERMINAL 0x02
+#define VC_OUTPUT_TERMINAL 0x03
+#define VC_SELECTOR_UNIT 0x04
+#define VC_PROCESSING_UNIT 0x05
+#define VC_EXTENSION_UNIT 0x06
+
+// Video Class-Specific VS Interface Descriptor Subtypes
+#define VS_UNDEFINED 0x00
+#define VS_INPUT_HEADER 0x01
+#define VS_OUTPUT_HEADER 0x02
+#define VS_STILL_IMAGE_FRAME 0x03
+#define VS_FORMAT_UNCOMPRESSED 0x04
+#define VS_FRAME_UNCOMPRESSED 0x05
+#define VS_FORMAT_MJPEG 0x06
+#define VS_FRAME_MJPEG 0x07
+#define VS_FORMAT_MPEG2TS 0x0A
+#define VS_FORMAT_DV 0x0C
+#define VS_COLORFORMAT 0x0D
+#define VS_FORMAT_FRAME_BASED 0x10
+#define VS_FRAME_FRAME_BASED 0x11
+#define VS_FORMAT_STREAM_BASED 0x12
+
+// USB Terminal Types
+#define TT_VENDOR_SPECIFIC 0x0100
+#define TT_STREAMING 0x0101
+
+// Input Terminal Types
+#define ITT_VENDOR_SPECIFIC 0x0200
+#define ITT_CAMERA 0x0201
+#define ITT_MEDIA_TRANSPORT_INPUT 0x0202
+
+// Output Terminal Types
+#define OTT_VENDOR_SPECIFIC 0x0300
+#define OTT_DISPLAY 0x0301
+#define OTT_MEDIA_TRANSPORT_OUTPUT 0x0302
+
+// External Terminal Types
+#define EXTERNAL_VENDOR_SPECIFIC 0x0400
+#define COMPOSITE_CONNECTOR 0x0401
+#define SVIDEO_CONNECTOR 0x0402
+#define COMPONENT_CONNECTOR 0x0403
+
+
+

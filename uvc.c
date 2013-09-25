@@ -117,8 +117,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	USB_DT_CS_INTERFACE, // bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VC_OUTPUT_TERMINAL,	// bDescriptorSubtype = VC_OUTPUT_TERMINAL
 	0x02, 				// bTerminalID = ID of this terminal
-	W_TO_B(0x0000),	(UVC_TT_STREAMING),// wTerminalType = TT_STREAMING type. This terminal is a USB streaming terminal.
-	MSB(UVC_TT_STREAMING),
+	W_TO_B(UVC_TT_STREAMING),// wTerminalType = TT_STREAMING type. This terminal is a USB streaming terminal.
 	0x00, 				// bAssocTerminal = No association
 	0x03, 				// bSourceID = The input pin of this unit is connected to the output pin of unit 5.
 	0x00, 				// iTerminal = Unused
@@ -165,8 +164,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	USB_DT_CS_INTERFACE, 		// bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VS_INPUT_HEADER,// bDescriptorSubtype = VS_INPUT_HEADER.
 	0x01, 				// bNumFormats = One format descriptor follows.
-	LSB(VS_DESC_SIZE),	// wTotalLength = Total size of class-specific VideoStreaming interface descriptors
-	MSB(VS_DESC_SIZE)			
+	W_TO_B(VS_DESC_SIZE),	// wTotalLength = Total size of class-specific VideoStreaming interface descriptors
 	0x82, 				// bEndpointAddress = Address of the isochronous endpoint used for video data
 	0x00, 				// bmInfo = No dynamic format change supported
 	0x03, 				// BUGBUG: bTerminalLink = This VideoStreaming interface supplies terminal ID 3 (Output Terminal).
@@ -192,50 +190,25 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0, 					// bAspectRatioY      
     0x00, 				// bmInterlaceFlags
     0, 					// bCopyProtect   
+
     // Class-specific VideoStreaming Frame Descriptor
     46,					// bLength                
     36,					// bDescriptorType        
     5,					// bDescriptorSubtype     
     1,					// bFrameIndex            
     0x01,				// bmCapabilities
-    LSB(640),			// wWidth 
-	MSB(640),         
-   	LSB(480),			// wHeight  
-	MSB(480),       
-    36864000,			// dwMinBitRate              
-    147456000,			// dwMaxBitRate              
-    614400,				// dwMaxVideoFrameBufferSize
-    333333,				// dwDefaultFrameInterval   
+    W_TO_B(640),		// wWidth 
+   	W_TO_B(480),		// wHeight  
+    DW_TO_B(36864000),	// dwMinBitRate              
+    DW_TO_B(147456000),			// dwMaxBitRate              
+    DW_TO_B(614400),	// dwMaxVideoFrameBufferSize
+    DW_TO_B(333333),	// dwDefaultFrameInterval   
     5,					// bFrameIntervalType       
-    333333,				// dwFrameInterval( 0)      
-    500000,				// dwFrameInterval( 1)      
-    666666,				// dwFrameInterval( 2)      
-    1000000,			// dwFrameInterval( 3)       
-    1333333,			// dwFrameInterval( 4)       
-
-
-/*
-	 VideoStreaming Interface Descriptor:
-        bLength                            46
-        bDescriptorType                    36
-        bDescriptorSubtype                  5 (FRAME_UNCOMPRESSED)
-        bFrameIndex                         1
-        bmCapabilities                   0x01
-          Still image supported
-        wWidth                            640
-        wHeight                           480
-        dwMinBitRate                 36864000
-        dwMaxBitRate                147456000
-        dwMaxVideoFrameBufferSize      614400
-        dwDefaultFrameInterval         333333
-        bFrameIntervalType                  5
-        dwFrameInterval( 0)            333333
-        dwFrameInterval( 1)            500000
-        dwFrameInterval( 2)            666666
-        dwFrameInterval( 3)           1000000
-        dwFrameInterval( 4)           1333333
-*/
-
+    DW_TO_B(333333),	// dwFrameInterval( 0)      
+    DW_TO_B(500000),	// dwFrameInterval( 1)      
+    DW_TO_B(666666),	// dwFrameInterval( 2)      
+    DW_TO_B(1000000),	// dwFrameInterval( 3)       
+    DW_TO_B(1333333),	// dwFrameInterval( 4)       
 
 	// endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
 	7,					// bLength

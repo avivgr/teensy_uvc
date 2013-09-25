@@ -161,10 +161,10 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
 	// Class-specific VideoStreaming Header Descriptor (Input)
 	0x0E, 				// bLength = Size of this descriptor, in bytes.
-	USB_DT_CS_INTERFACE, 		// bDescriptorType = USB_DT_CS_INTERFACE
+	USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VS_INPUT_HEADER,// bDescriptorSubtype = VS_INPUT_HEADER.
 	0x01, 				// bNumFormats = One format descriptor follows.
-	W_TO_B(VS_DESC_SIZE),	// wTotalLength = Total size of class-specific VideoStreaming interface descriptors
+	W_TO_B(VS_DESC_SIZE),// wTotalLength = Total size of class-specific VideoStreaming interface descriptors
 	0x82, 				// bEndpointAddress = Address of the isochronous endpoint used for video data
 	0x00, 				// bmInfo = No dynamic format change supported
 	0x03, 				// BUGBUG: bTerminalLink = This VideoStreaming interface supplies terminal ID 3 (Output Terminal).
@@ -210,20 +210,36 @@ static uint8_t PROGMEM config1_descriptor[] = {
     DW_TO_B(1000000),	// dwFrameInterval( 3)       
     DW_TO_B(1333333),	// dwFrameInterval( 4)       
 
-	// endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
-	7,					// bLength
-	USB_DT_ENDPOINT,					// bDescriptorType
-	UVC_TX_ENDPOINT | 0x80,		// bEndpointAddress
-	0x03,					// bmAttributes (0x03=intr)
-	UVC_TX_SIZE, 0,			// wMaxPacketSize
-	UVC_TX_INTERVAL,			// bInterval
-	// endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
-	7,					// bLength
-	USB_DT_ENDPOINT,					// bDescriptorType
-	UVC_RX_ENDPOINT,			// bEndpointAddress
-	0x03,					// bmAttributes (0x03=intr)
-	UVC_RX_SIZE, 0,			// wMaxPacketSize
-	UVC_RX_INTERVAL,			// bInterval
+	// Standard VS Interface Descriptor - Operational Alternate Setting 1
+   	0x09, 				// bLength = Size of this descriptor, in bytes.
+	USB_DT_INTERFACE,	// bDescriptorType = INTERFACE descriptor type
+	0x01, 				// bInterfaceNumber = Index of this interface
+	0x01, 				// bAlternateSetting = Index of this alternate setting
+	0x01, 				// bNumEndpoints = 0 endpoints – no bandwidth used
+	0x0E, 				// bInterfaceClass = CC_VIDEO
+	0x02, 				// bInterfaceSubClass = SC_VIDEOSTREAMING
+	0x00, 				// bInterfaceProtocol = PC_PROTOCOL_UNDEFINED
+	0x00, 				// iInterface = Unused
+
+	// Standard VS Isochronous Video Data Endpoint Descriptor
+	0x07, 				// bLength = Size of this descriptor, in bytes.
+	USB_DT_ENDPOINT, 	// bDescriptorType = ENDPOINT
+	UVC_TX_ENDPOINT|0x80,// bEndpointAddress = IN endpoint 2
+	0x05, 				// bmAttributes = Isochronous transfer type. 
+	W_TO_B(UVC_TX_SIZE),// wMaxPacketSize = Max packet size of 510 bytes
+	UVC_TX_INTERVAL,	// bInterval = One frame interval
+};
+
+static uint8_t PROGMEM device_qualifier_desc[] = {
+    10,         		 //	bLength            
+    USB_DT_DEVICE_QUALIFIER, //	bDescriptorType    
+    W_TO_B(0x0200),      //	bcdUSB 
+    239,          		 //	bDeviceClass 239 Miscellaneous Device
+    2,         		 	 //	bDeviceSubClass     
+    1,         		 	 //	bDeviceProtocol     Interface Association
+    ENDPOINT0_SIZE,      //	bMaxPacketSize0    
+    1,          		 //	bNumConfigurations
+    0                    // Device Status: 0x0000(Bus Powered)
 };
 
 struct usb_string_descriptor_struct {
@@ -231,16 +247,19 @@ struct usb_string_descriptor_struct {
 	uint8_t bDescriptorType;
 	int16_t wString[];
 };
+
 static struct usb_string_descriptor_struct PROGMEM string0 = {
 	4,
 	USB_DT_STRING,
 	{0x0409}
 };
+
 static struct usb_string_descriptor_struct PROGMEM string1 = {
 	sizeof(STR_MANUFACTURER),
 	USB_DT_STRING,
 	STR_MANUFACTURER
 };
+
 static struct usb_string_descriptor_struct PROGMEM string2 = {
 	sizeof(STR_PRODUCT),
 	USB_DT_STRING,
@@ -259,6 +278,7 @@ static struct descriptor_list_struct {
 	{MKWORD(USB_DT_CONFIG, 0x00), 0x0000, config1_descriptor, sizeof(config1_descriptor)},
 	{MKWORD(USB_DT_CS_INTERFACE, 0x00), UVC_INTERFACE, 0, sizeof(UVC_hid_report_desc)},
 	{MKWORD(USB_DT_CS_INTERFACE, 0x00), UVC_INTERFACE, config1_descriptor+UVC_DESC_OFFSET, 9},
+	{MKWORD(USB_DT_DEVICE_QUALIFIER, 0x00), 0x0000, device_qualifier_desc, sizeof(device_qualifier_desc)},
 	{MKWORD(USB_DT_STRING, 0x00), 0x0000, (const uint8_t *)&string0, 4},
 	{MKWORD(USB_DT_STRING, 0x01), 0x0409, (const uint8_t *)&string1, sizeof(STR_MANUFACTURER)},
 	{MKWORD(USB_DT_STRING, 0x02), 0x0409, (const uint8_t *)&string2, sizeof(STR_PRODUCT)}

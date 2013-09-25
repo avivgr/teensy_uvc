@@ -19,8 +19,14 @@
 
 #define MAX_ENDPOINT		4
 
-#define LSB(n) (n & 255)
-#define MSB(n) ((n >> 8) & 255)
+#define LSB(n) (n & 0xff)
+#define MSB(n) ((n >> 8) & 0xff)
+#define LSW(n) (n & 0xffff)
+#define MSW(n) ((n >> 16) & 0xffff)
+#define MKWORD(m,l) ((m << 8) | l)
+
+#define W_TO_B(w) LSB(w), MSB(w)
+#define DW_TO_B(dw) LSB(LSW(dw)),MSB(LSW(dw)),LSB(MSW(dw)), MSB(MSW(dw))
 
 #if defined(__AVR_AT90USB162__)
 #define HW_CONFIG() 

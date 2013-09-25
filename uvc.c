@@ -44,9 +44,9 @@ static uint8_t PROGMEM device_descriptor[] = {
 	0x02,				// bDeviceSubClass = Common Class
 	0x01,				// bDeviceProtocol = Interface Association Descriptor
 	ENDPOINT0_SIZE,		// bMaxPacketSize0
-	LSB(VENDOR_ID), MSB(VENDOR_ID),		// idVendor
-	LSB(PRODUCT_ID), MSB(PRODUCT_ID),	// idProduct
-	0x00, 0x01,				// bcdDevice
+	W_TO_B(VENDOR_ID),	// idVendor
+	W_TO_B(PRODUCT_ID),	// idProduct
+	W_TO_B(0x0100),		// bcdDevice
 	1,					// iManufacturer
 	2,					// iProduct
 	0,					// iSerialNumber
@@ -56,12 +56,11 @@ static uint8_t PROGMEM device_descriptor[] = {
 #define CONFIG1_DESC_SIZE        (9+8+9+7+7+9+9+7)
 #define UVC_DESC_OFFSET   (9+9)
 #define DEBUG_HID_DESC_OFFSET    (9+9+9+7+7+9)
-static uint8_t PROGMEM config1_descriptor[CONFIG1_DESC_SIZE] = {
+static uint8_t PROGMEM config1_descriptor[] = {
 	// configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
 	9, 					// bLength;
 	USB_DT_CONFIG,      // bDescriptorType;
-	LSB(CONFIG1_DESC_SIZE),	// wTotalLength
-	MSB(CONFIG1_DESC_SIZE),
+	W_TO_B(CONFIG1_DESC_SIZE),	// wTotalLength
 	2,					// bNumInterfaces
 	1,					// bConfigurationValue
 	0,					// iConfiguration
@@ -93,9 +92,8 @@ static uint8_t PROGMEM config1_descriptor[CONFIG1_DESC_SIZE] = {
 	0x0D, 				// bLength = Size of this descriptor, in bytes.
 	USB_DT_CS_INTERFACE, 		// bDescriptorType = USB_DT_CS_INTERFACE
 	0x01, 				// bDescriptorSubType = VC_HEADER subtype
-	0x10, 0x01,			// bcdUVC = 0x0110 version 1.1.
-	LSB(VC_DESC_SIZE),	// wTotalLength = Total size of class-specific descriptors
-	MSB(VC_DESC_SIZE),
+	W_TO_B(0x0110),			// bcdUVC = 0x0110 version 1.1.
+	W_TO_B(VC_DESC_SIZE),// wTotalLength = Total size of class-specific descriptors
 	0x80,0x8D,0x5B,0x00,// dwClockFrequency = deprecated. 0x005B8D80 This device will provide timestamps and a device clock reference based on a 6MHz clock.
 	0x01, 				// bInCollection = Number of streaming interfaces.
 	0x01, 				// baInterfaceNr(1) = VideoStreaming interface 1 belongs to this VideoControl interface.
@@ -105,22 +103,21 @@ static uint8_t PROGMEM config1_descriptor[CONFIG1_DESC_SIZE] = {
 	USB_DT_CS_INTERFACE,		// bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VC_INPUT_TERMINAL,// bDescriptorSubtype = VC_INPUT_TERMINAL subtype
 	0x01,				// bTerminalID = ID of this input terminal
-	LSB(UVC_ITT_CAMERA),// wTerminalType = ITT_CAMERA type. This terminal is a camera terminal representing the CCD sensor.
-	MSB(UVC_ITT_CAMERA),				
+	W_TO_B(UVC_ITT_CAMERA),// wTerminalType = ITT_CAMERA type. This terminal is a camera terminal representing the CCD sensor.
 	0x00, 				// bAssocTerminal = No association
 	0x00, 				// iTerminal = Unused
-	0x00, 0x00,			// wObjectiveFocalLengthMin = No optical zoom supported
-	0x00, 0x00,			// wObjectiveFocalLengthMax = No optical zoom supported
-	0x00, 0x00,			// wOcularFocalLength = No optical zoom supported
+	W_TO_B(0x0000),		// wObjectiveFocalLengthMin = No optical zoom supported
+	W_TO_B(0x0000),		// wObjectiveFocalLengthMax = No optical zoom supported
+	W_TO_B(0x0000),		// wOcularFocalLength = No optical zoom supported
 	0x02, 				// bControlSize = The size of the bmControls is 2 bytes (this terminal doesn’t implement any controls).
-	0x00, 0x00,			// bmControls = No controls are supported.
+	W_TO_B(0x0000),		// bmControls = No controls are supported.
 
 	// Output Terminal Descriptor
 	0x09, 				// bLength = Size of this descriptor, in bytes.
 	USB_DT_CS_INTERFACE, // bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VC_OUTPUT_TERMINAL,	// bDescriptorSubtype = VC_OUTPUT_TERMINAL
 	0x02, 				// bTerminalID = ID of this terminal
-	LSB(UVC_TT_STREAMING),// wTerminalType = TT_STREAMING type. This terminal is a USB streaming terminal.
+	W_TO_B(0x0000),	(UVC_TT_STREAMING),// wTerminalType = TT_STREAMING type. This terminal is a USB streaming terminal.
 	MSB(UVC_TT_STREAMING),
 	0x00, 				// bAssocTerminal = No association
 	0x03, 				// bSourceID = The input pin of this unit is connected to the output pin of unit 5.
@@ -180,29 +177,45 @@ static uint8_t PROGMEM config1_descriptor[CONFIG1_DESC_SIZE] = {
 	0x00, 				// bmaControls = No VideoStreaming specific controls are supported.
 
 	// Class-specific VideoStreaming Format Descriptor
-	0x0B, 				// bLength = Size of this descriptor, in bytes.
+	27, 				// bLength = Size of this descriptor, in bytes.
 	USB_DT_CS_INTERFACE, 		// bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VS_FORMAT_UNCOMPRESSED, // bDescriptorSubtype = UVC_VS_FORMAT_UNCOMPRESSED
-	
+	1, 					// bFormatIndex         
+    1, 				// bNumFrameDescriptors
+    0x59, 0x55, 0x59, 0x32, // guidFormat
+    0x00, 0x00, 0x10, 0x00,
+    0x80, 0x00, 0x00, 0xaa, 
+    0x00, 0x38, 0x9b, 0x71, 
+    16, 				// bBitsPerPixel      
+    1, 					// bDefaultFrameIndex 
+    0, 					// bAspectRatioX      
+    0, 					// bAspectRatioY      
+    0x00, 				// bmInterlaceFlags
+    0, 					// bCopyProtect   
+    // Class-specific VideoStreaming Frame Descriptor
+    46,					// bLength                
+    36,					// bDescriptorType        
+    5,					// bDescriptorSubtype     
+    1,					// bFrameIndex            
+    0x01,				// bmCapabilities
+    LSB(640),			// wWidth 
+	MSB(640),         
+   	LSB(480),			// wHeight  
+	MSB(480),       
+    36864000,			// dwMinBitRate              
+    147456000,			// dwMaxBitRate              
+    614400,				// dwMaxVideoFrameBufferSize
+    333333,				// dwDefaultFrameInterval   
+    5,					// bFrameIntervalType       
+    333333,				// dwFrameInterval( 0)      
+    500000,				// dwFrameInterval( 1)      
+    666666,				// dwFrameInterval( 2)      
+    1000000,			// dwFrameInterval( 3)       
+    1333333,			// dwFrameInterval( 4)       
+
+
 /*
 	 VideoStreaming Interface Descriptor:
-        bLength                            27
-        bDescriptorType                    36
-        bDescriptorSubtype                  4 (FORMAT_UNCOMPRESSED)
-        bFormatIndex                        1
-        bNumFrameDescriptors               12
-        guidFormat                            {59555932-0000-1000-8000-00aa00389b71}
-        bBitsPerPixel                      16
-        bDefaultFrameIndex                  1
-        bAspectRatioX                       0
-        bAspectRatioY                       0
-        bmInterlaceFlags                 0x00
-          Interlaced stream or variable: No
-          Fields per frame: 2 fields
-          Field 1 first: No
-          Field pattern: Field 1 only
-          bCopyProtect                      0
-      VideoStreaming Interface Descriptor:
         bLength                            46
         bDescriptorType                    36
         bDescriptorSubtype                  5 (FRAME_UNCOMPRESSED)

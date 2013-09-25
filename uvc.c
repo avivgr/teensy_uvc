@@ -6,40 +6,35 @@
 #include "uvc.h"
 
 #define STR_MANUFACTURER	L"Acme"
+#define STR_MANUFACTURER_I	1
 #define STR_PRODUCT		L"Teensy UVC Camera"
+#define STR_PRODUCT_I 2
+
 #define VENDOR_ID		0x045e //Microsoft Corp.
 #define PRODUCT_ID		0x075d //LifeCam Cinema
 
 // Endpoint config
-#define ENDPOINT0_SIZE		16
+#define ENDPOINT0_SIZE	16
 #define UVC_INTERFACE	0
 #define UVC_TX_ENDPOINT	1
-#define UVC_RX_ENDPOINT	2
-#define DEBUG_INTERFACE		1
-#define DEBUG_TX_ENDPOINT	3
-#define DEBUG_TX_SIZE		32
 
 #if defined(__AVR_AT90USB162__)
 #define UVC_TX_BUFFER	EP_SINGLE_BUFFER
-#define UVC_RX_BUFFER	EP_SINGLE_BUFFER
-#define DEBUG_TX_BUFFER		EP_SINGLE_BUFFER
 #else
 #define UVC_TX_BUFFER	EP_DOUBLE_BUFFER
-#define UVC_RX_BUFFER	EP_DOUBLE_BUFFER
-#define DEBUG_TX_BUFFER		EP_DOUBLE_BUFFER
 #endif
 
 static const uint8_t PROGMEM endpoint_config_table[] = {
-	1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(UVC_TX_SIZE) | UVC_TX_BUFFER,
-	1, EP_TYPE_INTERRUPT_OUT,  EP_SIZE(UVC_RX_SIZE) | UVC_RX_BUFFER,
-	1, EP_TYPE_INTERRUPT_IN,  EP_SIZE(DEBUG_TX_SIZE) | DEBUG_TX_BUFFER,
+	1, EP_TYPE_ISOCHRONOUS_IN,  EP_SIZE(UVC_TX_SIZE) | UVC_TX_BUFFER,
+	0,
+	0,
 	0
 };
 
 static uint8_t PROGMEM device_descriptor[] = {
 	18,					// bLength
 	USB_DT_DEVICE,		// bDescriptorType
-	0x00, 0x02,			// bcdUSB
+	W_TO_B(0x0200),		// bcdUSB
 	0xef,				// bDeviceClass = Miscellaneous Device Class
 	0x02,				// bDeviceSubClass = Common Class
 	0x01,				// bDeviceProtocol = Interface Association Descriptor
@@ -53,9 +48,9 @@ static uint8_t PROGMEM device_descriptor[] = {
 	1					// bNumConfigurations
 };
 
-#define CONFIG1_DESC_SIZE        (9+8+9+7+7+9+9+7)
-#define UVC_DESC_OFFSET   (9+9)
-#define DEBUG_HID_DESC_OFFSET    (9+9+9+7+7+9)
+#define CONFIG1_DESC_SIZE        (9+8+9+13+17+9+11+9+14+27+46+9+7)
+#define VC_DESC_SIZE (17+9+11)
+#define VS_DESC_SIZE (27+46) //BUGBUG: validate
 static uint8_t PROGMEM config1_descriptor[] = {
 	// configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
 	9, 					// bLength;
@@ -75,31 +70,31 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	0x0E, 				// bFunctionClass = CC_VIDEO 
 	0x03, 				// bFunctionSubClass = SC_VIDEO_INTERFACE_COLLECTION 
 	0x00, 				// bFunctionProtocol = Not used. Must be set to PC_PROTOCOL_UNDEFINED. 
-	0x02, 				// iFunction = Index to product string descriptor
+	STR_PRODUCT_I, 		// iFunction = Index to product string descriptor
 
     // Standard VideoControl Interface Descriptor
-	0x09,				// bLength = Size of this descriptor, in bytes.
+	9,	  				// bLength = Size of this descriptor, in bytes.
 	USB_DT_INTERFACE,	// bDescriptorType = INTERFACE descriptor type
 	0x00,				// bInterfaceNumber = Index of this interface
 	0x00,				// bAlternateSetting = Index of this setting
-	0x01,				// bNumEndpoints = 1 endpoint (interrupt endpoint)
+	0x00,				// bNumEndpoints = 0 endpoints (NO interrupt endpoint)
 	0x0E,				// bInterfaceClass = CC_VIDEO
 	0x01,				// bInterfaceSubClass = SC_VIDEOCONTROL
 	0x00, 				// bInterfaceProtocol = Not used. Must be set to PC_PROTOCOL_UNDEFINED.
-	0x02, 				// iInterface = Index to string descriptor that contains the product string 
+	STR_PRODUCT_I, 		// iInterface = Index to string descriptor that contains the product string 
 
 	// Class-specific VideoControl Interface Descriptor
-	0x0D, 				// bLength = Size of this descriptor, in bytes.
-	USB_DT_CS_INTERFACE, 		// bDescriptorType = USB_DT_CS_INTERFACE
+	13, 				// bLength = Size of this descriptor, in bytes.
+	USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
 	0x01, 				// bDescriptorSubType = VC_HEADER subtype
-	W_TO_B(0x0110),			// bcdUVC = 0x0110 version 1.1.
+	W_TO_B(0x0110),		// bcdUVC = 0x0110 version 1.1.
 	W_TO_B(VC_DESC_SIZE),// wTotalLength = Total size of class-specific descriptors
-	0x80,0x8D,0x5B,0x00,// dwClockFrequency = deprecated. 0x005B8D80 This device will provide timestamps and a device clock reference based on a 6MHz clock.
+	DW_TO_B(0x005B8D80),// dwClockFrequency = deprecated. 0x005B8D80 This device will provide timestamps and a device clock reference based on a 6MHz clock.
 	0x01, 				// bInCollection = Number of streaming interfaces.
 	0x01, 				// baInterfaceNr(1) = VideoStreaming interface 1 belongs to this VideoControl interface.
 
 	// Input Terminal Descriptor (Camera)
-	0x11,				// bLength = Size of this descriptor, in bytes.
+	17, 				// bLength = Size of this descriptor, in bytes.
 	USB_DT_CS_INTERFACE,		// bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VC_INPUT_TERMINAL,// bDescriptorSubtype = VC_INPUT_TERMINAL subtype
 	0x01,				// bTerminalID = ID of this input terminal
@@ -113,7 +108,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	W_TO_B(0x0000),		// bmControls = No controls are supported.
 
 	// Output Terminal Descriptor
-	0x09, 				// bLength = Size of this descriptor, in bytes.
+	9, 			    	// bLength = Size of this descriptor, in bytes.
 	USB_DT_CS_INTERFACE, // bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VC_OUTPUT_TERMINAL,	// bDescriptorSubtype = VC_OUTPUT_TERMINAL
 	0x02, 				// bTerminalID = ID of this terminal
@@ -123,7 +118,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	0x00, 				// iTerminal = Unused
 
 	// Processing Unit Descriptor
-	0x0B, 				// bLength = Size of this descriptor, in bytes.
+	11, 				// bLength = Size of this descriptor, in bytes.
 	USB_DT_CS_INTERFACE, // bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VC_PROCESSING_UNIT,// bDescriptorSubtype = VC_PROCESSING_UNIT
 	0x03, 				// bUnitID = ID of this unit
@@ -148,8 +143,8 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	0x20, 0x00, 		// wMaxTransferSize = 32-byte status packet
 #endif
 
-    // Standard VideoStreaming Interface Descriptor
-	0x09, 				// bLength = Size of this descriptor, in bytes.
+    // Standard VideoStreaming Interface Descriptor - - Operational Alternate Setting 0
+	9,	 				// bLength = Size of this descriptor, in bytes.
 	USB_DT_INTERFACE, 	// bDescriptorType = INTERFACE descriptor type
 	0x01, 				// bInterfaceNumber = Index of this interface
 	0x00, 				// bAlternateSetting = Index of this alternate setting
@@ -160,12 +155,12 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	0x00, 				// iInterface = Unused
 
 	// Class-specific VideoStreaming Header Descriptor (Input)
-	0x0E, 				// bLength = Size of this descriptor, in bytes.
+	14, 				// bLength = Size of this descriptor, in bytes.
 	USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
 	UVC_VS_INPUT_HEADER,// bDescriptorSubtype = VS_INPUT_HEADER.
 	0x01, 				// bNumFormats = One format descriptor follows.
 	W_TO_B(VS_DESC_SIZE),// wTotalLength = Total size of class-specific VideoStreaming interface descriptors
-	0x82, 				// bEndpointAddress = Address of the isochronous endpoint used for video data
+	UVC_TX_ENDPOINT|0x80, // bEndpointAddress = Address of the isochronous endpoint used for video data
 	0x00, 				// bmInfo = No dynamic format change supported
 	0x03, 				// BUGBUG: bTerminalLink = This VideoStreaming interface supplies terminal ID 3 (Output Terminal).
 	0x01, 				// bStillCaptureMethod = Device supports still image capture method 1.
@@ -211,7 +206,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     DW_TO_B(1333333),	// dwFrameInterval( 4)       
 
 	// Standard VS Interface Descriptor - Operational Alternate Setting 1
-   	0x09, 				// bLength = Size of this descriptor, in bytes.
+   	9, 					// bLength = Size of this descriptor, in bytes.
 	USB_DT_INTERFACE,	// bDescriptorType = INTERFACE descriptor type
 	0x01, 				// bInterfaceNumber = Index of this interface
 	0x01, 				// bAlternateSetting = Index of this alternate setting
@@ -222,7 +217,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	0x00, 				// iInterface = Unused
 
 	// Standard VS Isochronous Video Data Endpoint Descriptor
-	0x07, 				// bLength = Size of this descriptor, in bytes.
+	7, 					// bLength = Size of this descriptor, in bytes.
 	USB_DT_ENDPOINT, 	// bDescriptorType = ENDPOINT
 	UVC_TX_ENDPOINT|0x80,// bEndpointAddress = IN endpoint 2
 	0x05, 				// bmAttributes = Isochronous transfer type. 
@@ -276,12 +271,10 @@ static struct descriptor_list_struct {
 } PROGMEM descriptor_list[] = {
 	{MKWORD(USB_DT_DEVICE, 0x00), 0x0000, device_descriptor, sizeof(device_descriptor)},
 	{MKWORD(USB_DT_CONFIG, 0x00), 0x0000, config1_descriptor, sizeof(config1_descriptor)},
-	{MKWORD(USB_DT_CS_INTERFACE, 0x00), UVC_INTERFACE, 0, sizeof(UVC_hid_report_desc)},
-	{MKWORD(USB_DT_CS_INTERFACE, 0x00), UVC_INTERFACE, config1_descriptor+UVC_DESC_OFFSET, 9},
 	{MKWORD(USB_DT_DEVICE_QUALIFIER, 0x00), 0x0000, device_qualifier_desc, sizeof(device_qualifier_desc)},
 	{MKWORD(USB_DT_STRING, 0x00), 0x0000, (const uint8_t *)&string0, 4},
-	{MKWORD(USB_DT_STRING, 0x01), 0x0409, (const uint8_t *)&string1, sizeof(STR_MANUFACTURER)},
-	{MKWORD(USB_DT_STRING, 0x02), 0x0409, (const uint8_t *)&string2, sizeof(STR_PRODUCT)}
+	{MKWORD(USB_DT_STRING, STR_MANUFACTURER_I), 0x0409, (const uint8_t *)&string1, sizeof(STR_MANUFACTURER)},
+	{MKWORD(USB_DT_STRING, STR_PRODUCT_I), 0x0409, (const uint8_t *)&string2, sizeof(STR_PRODUCT)}
 };
 #define NUM_DESC_LIST (sizeof(descriptor_list)/sizeof(struct descriptor_list_struct))
 

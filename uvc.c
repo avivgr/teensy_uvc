@@ -28,10 +28,10 @@ char _buff[32];
 #define UVC_INTERFACE	0
 #define UVC_TX_ENDPOINT	1
 #define UVC_TX_BUFFER	EP_DOUBLE_BUFFER
-#define UVC_TX_SIZE EP_SIZE_256
+#define UVC_TX_SIZE 256
 
 static const uint8_t PROGMEM endpoint_config_table[] = {
-	1, EP_TYPE_ISOCHRONOUS_IN, UVC_TX_SIZE | UVC_TX_BUFFER,
+	1, EP_TYPE_ISOCHRONOUS_IN, EP_SIZE(UVC_TX_SIZE) | UVC_TX_BUFFER,
 	0,
 	0,
 	0
@@ -228,7 +228,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 	USB_DT_ENDPOINT, 	// bDescriptorType = ENDPOINT
 	UVC_TX_ENDPOINT|0x80,// bEndpointAddress = IN endpoint 2
 	0x05, 				// bmAttributes = Isochronous transfer type. 
-	W_TO_B(UVC_TX_SIZE),// wMaxPacketSize = Max packet size of 510 bytes
+	W_TO_B(UVC_TX_SIZE),// wMaxPacketSize = Max packet size
 	1,	                // bInterval = One frame interval BUGBUG what means??
 };
 

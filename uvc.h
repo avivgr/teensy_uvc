@@ -1,16 +1,16 @@
 #ifndef __UVC__
 #define __UVC__
 
-#define EP_TYPE_CONTROL			0x00
-#define EP_TYPE_BULK_IN			0x81
-#define EP_TYPE_BULK_OUT		0x80
-#define EP_TYPE_INTERRUPT_IN	0xC1
-#define EP_TYPE_INTERRUPT_OUT	0xC0
-#define EP_TYPE_ISOCHRONOUS_IN	0x41
-#define EP_TYPE_ISOCHRONOUS_OUT	0x40
+#define EP_TYPE_CONTROL         0x00
+#define EP_TYPE_BULK_IN         0x81
+#define EP_TYPE_BULK_OUT        0x80
+#define EP_TYPE_INTERRUPT_IN    0xC1
+#define EP_TYPE_INTERRUPT_OUT   0xC0
+#define EP_TYPE_ISOCHRONOUS_IN  0x41
+#define EP_TYPE_ISOCHRONOUS_OUT 0x40
 
-#define EP_SINGLE_BUFFER		0x02
-#define EP_DOUBLE_BUFFER		0x06
+#define EP_SINGLE_BUFFER        0x02
+#define EP_DOUBLE_BUFFER        0x06
 
 #define EP_SIZE_8   (0<<4)  // 001b: 8  bytes
 #define EP_SIZE_16  (1<<4)  // 001b: 16 bytes
@@ -28,7 +28,7 @@
                          0x00)))))
 
 
-#define MAX_ENDPOINT		4
+#define MAX_ENDPOINT        4
 
 #define LSB(n) (n & 0xff)
 #define MSB(n) ((n >> 8) & 0xff)
@@ -62,15 +62,15 @@
 #endif
 
 // Standard control endpoint request types
-#define USB_REQ_GET_STATUS			0
-#define USB_REQ_CLEAR_FEATURE	    1
-#define USB_REQ_SET_FEATURE			3
-#define USB_REQ_SET_ADDRESS			5
-#define USB_REQ_GET_DESCRIPTOR	  	6
-#define USB_REQ_GET_CONFIGURATION	8
-#define USB_REQ_SET_CONFIGURATION	9
-#define USB_REQ_GET_INTERFACE		10
-#define USB_REQ_SET_INTERFACE		11
+#define USB_REQ_GET_STATUS          0
+#define USB_REQ_CLEAR_FEATURE       1
+#define USB_REQ_SET_FEATURE         3
+#define USB_REQ_SET_ADDRESS         5
+#define USB_REQ_GET_DESCRIPTOR      6
+#define USB_REQ_GET_CONFIGURATION   8
+#define USB_REQ_SET_CONFIGURATION   9
+#define USB_REQ_GET_INTERFACE       10
+#define USB_REQ_SET_INTERFACE       11
 
 // USB descriptor types
 #define USB_DT_DEVICE  0x1

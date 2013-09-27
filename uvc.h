@@ -12,10 +12,18 @@
 #define EP_SINGLE_BUFFER		0x02
 #define EP_DOUBLE_BUFFER		0x06
 
-#define EP_SIZE(s)	((s) == 64 ? 0x30 :	\
-			((s) == 32 ? 0x20 :	\
-			((s) == 16 ? 0x10 :	\
+#define EP_SIZE_8  	(0<<4)  // 001b: 8  bytes
+#define EP_SIZE_16 	(1<<4)  // 001b: 16 bytes
+#define EP_SIZE_32 	(2<<4)  // 010b: 32 bytes
+#define EP_SIZE_64 	(3<<4)  // 011b: 64 bytes
+#define EP_SIZE_128 (4<<4)  // 100b: 128 bytes
+#define EP_SIZE_256 (5<<4)  // 101b: 256 bytes
+#define EP_SIZE_512 (6<<4)  // 110b: 512 bytes
+#define EP_SIZE(s)	((s) == 64 ? EP_SIZE_64 :	\
+			((s) == 32 ? EP_SIZE_32 :	\
+			((s) == 16 ? EP_SIZE_16 :	\
 			             0x00)))
+
 
 #define MAX_ENDPOINT		4
 
@@ -125,5 +133,9 @@
 #define BAUD_RATE 38400
 #define LED_CONFIG      (DDRD |= (1<<6))
 #define CPU_PRESCALE(n) (CLKPR = 0x80, CLKPR = (n))
+
+#define LED_CONFIG      (DDRD |= (1<<6))
+#define LED_ON          (PORTD &= ~(1<<6))
+#define LED_OFF         (PORTD |= (1<<6))
 
 #endif // #define __UVC__

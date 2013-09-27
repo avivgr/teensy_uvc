@@ -27,6 +27,7 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+ #include <avr/pgmspace.h>
 
 #include "uart.h"
 
@@ -93,6 +94,27 @@ uint8_t uart_available(void)
 	tail = rx_buffer_tail;
 	if (head >= tail) return head - tail;
 	return RX_BUFFER_SIZE + head - tail;
+}
+
+void uart_print_P(const char *str)
+{
+	char c;
+	while (1) {
+		c = pgm_read_byte(str++);
+		if (!c) break;
+			uart_putchar(c);
+	}
+}
+
+void uart_print_S(char *str)
+{
+	char c;
+	while (1) {
+		c = *str;
+		if (!c) break;
+		uart_putchar(c);
+		str++;
+	}
 }
 
 // Transmit Interrupt

@@ -48,8 +48,8 @@ static uint8_t PROGMEM device_descriptor[] = {
     W_TO_B(VENDOR_ID),  // idVendor
     W_TO_B(PRODUCT_ID), // idProduct
     W_TO_B(0x0100),     // bcdDevice
-    1,                  // iManufacturer
-    2,                  // iProduct
+    STR_MANUFACTURER_I, // iManufacturer
+    STR_PRODUCT_I,      // iProduct
     0,                  // iSerialNumber
     1                   // bNumConfigurations
 };

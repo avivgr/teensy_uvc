@@ -101,7 +101,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Input Terminal Descriptor (Camera)
     17,                 // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_INTERFACE,        // bDescriptorType = USB_DT_CS_INTERFACE
+    USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
     UVC_VC_INPUT_TERMINAL,// bDescriptorSubtype = VC_INPUT_TERMINAL subtype
     0x01,               // bTerminalID = ID of this input terminal
     W_TO_B(UVC_ITT_CAMERA),// wTerminalType = ITT_CAMERA type. This terminal is a camera terminal representing the CCD sensor.
@@ -133,22 +133,6 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0x02,               // bControlSize = Size of the bmControls field, in bytes.
     0x01, 0x00,         // bmControls = Brightness control supported
     0x00,               // iProcessing = Unused
-
-#if 0
-    // Standard Interrupt Endpoint Descriptor
-    0x07,               // bLength = Size of this descriptor, in bytes.
-    USB_DT_ENDPOINT,    // bDescriptorType = ENDPOINT descriptor
-    0x83,               // bEndpointAddress = IN endpoint 3
-    0x03,               // bmAttributes = Interrupt transfer type
-    0x08, 0x00,         // wMaxPacketSize = 8-byte status packet
-    0x0A,               // bInterval = Poll at least every 10ms.
-
-    // Class-specific Interrupt Endpoint Descriptor
-    0x05,               // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_ENDPOINT, // bDescriptorType = CS_ENDPOINT descriptor
-    0x03,               // bDescriptorSubType = EP_INTERRUPT
-    0x20, 0x00,         // wMaxTransferSize = 32-byte status packet
-#endif
 
     // Standard VideoStreaming Interface Descriptor - - Operational Alternate Setting 0
     9,                  // bLength = Size of this descriptor, in bytes.

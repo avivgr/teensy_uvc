@@ -195,14 +195,14 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Class-specific VideoStreaming Frame Descriptor
     46,                 // bLength                
-    36,                 // bDescriptorType        
-    5,                  // bDescriptorSubtype     
+    USB_DT_CS_INTERFACE,// bDescriptorType        
+    UVC_VS_FRAME_UNCOMPRESSED,// bDescriptorSubtype     
     1,                  // bFrameIndex            
     0x01,               // bmCapabilities
     W_TO_B(640),        // wWidth 
     W_TO_B(480),        // wHeight  
     DW_TO_B(36864000),  // dwMinBitRate              
-    DW_TO_B(147456000),         // dwMaxBitRate              
+    DW_TO_B(147456000), // dwMaxBitRate              
     DW_TO_B(614400),    // dwMaxVideoFrameBufferSize
     DW_TO_B(333333),    // dwDefaultFrameInterval   
     5,                  // bFrameIntervalType       

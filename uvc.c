@@ -20,7 +20,7 @@ char _buff[32];
 #define STR_PRODUCT     L"Teensy UVC Camera"
 #define STR_PRODUCT_I 2
 
-#define VENDOR_ID       0x045e //Microsoft Corp.
+#define VENDOR_ID       0x046e //Microsoft Corp.
 #define PRODUCT_ID      0x375d //LifeCam Cinema
 
 // Endpoint config
@@ -54,8 +54,8 @@ static uint8_t PROGMEM device_descriptor[] = {
     1                   // bNumConfigurations
 };
 
-#define CONFIG1_DESC_SIZE (9+8+9+13+17+9+11+9+14+27+46+9+7)
-#define VC_DESC_SIZE (13+17+9+11)
+#define CONFIG1_DESC_SIZE (9+8+9+13+17+9+7+11+9+14+27+46+9+7)
+#define VC_DESC_SIZE (13+17+9+7+11)
 #define VS_DESC_SIZE (14+27+46) 
 static uint8_t PROGMEM config1_descriptor[] = {
     // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
@@ -92,7 +92,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     // Class-specific VideoControl Interface Descriptor
     13,                 // bLength = Size of this descriptor, in bytes.
     USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
-    0x01,               // bDescriptorSubType = VC_HEADER subtype
+    UVC_VC_HEADER,      // bDescriptorSubType = VC_HEADER subtype
     W_TO_B(0x0110),     // bcdUVC = 0x0110 version 1.1.
     W_TO_B(VC_DESC_SIZE),// wTotalLength = Total size of class-specific descriptors
     DW_TO_B(0x005B8D80),// dwClockFrequency = deprecated. 0x005B8D80 This device will provide timestamps and a device clock reference based on a 6MHz clock.
@@ -115,20 +115,29 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Output Terminal Descriptor
     9,                  // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_INTERFACE, // bDescriptorType = USB_DT_CS_INTERFACE
+    USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
     UVC_VC_OUTPUT_TERMINAL, // bDescriptorSubtype = VC_OUTPUT_TERMINAL
     0x02,               // bTerminalID = ID of this terminal
     W_TO_B(UVC_TT_STREAMING),// wTerminalType = TT_STREAMING type. This terminal is a USB streaming terminal.
     0x00,               // bAssocTerminal = No association
-    0x03,               // bSourceID = The input pin of this unit is connected to the output pin of unit 3.
+    0x04,               // bSourceID = The input pin of this unit is connected to the output pin of unit 3.
     0x00,               // iTerminal = Unused
+    
+    // Selector Unit Terminal Descriptor
+    7,                  // bLength                
+    USB_DT_CS_INTERFACE,// bDescriptorType        
+    UVC_VC_SELECTOR_UNIT,// bDescriptorSubtype      (SELECTOR_UNIT)
+    0x03,               // bUnitID                
+    1,                  // bNrInPins              
+    0x01,               // baSource( 0)           
+    0,                  // iSelector
 
     // Processing Unit Descriptor
     11,                 // bLength = Size of this descriptor, in bytes.
     USB_DT_CS_INTERFACE, // bDescriptorType = USB_DT_CS_INTERFACE
     UVC_VC_PROCESSING_UNIT,// bDescriptorSubtype = VC_PROCESSING_UNIT
-    0x03,               // bUnitID = ID of this unit
-    0x01,               // bSourceID = This input pin of this unit is connected to the output pin of unit with ID 1.
+    0x04,               // bUnitID = ID of this unit
+    0x03,               // bSourceID = This input pin of this unit is connected to the output pin of unit with ID 1.
     0x00, 0x00,         // wMaxMultiplier = unused
     0x02,               // bControlSize = Size of the bmControls field, in bytes.
     0x01, 0x00,         // bmControls = Brightness control supported
@@ -231,12 +240,12 @@ static uint8_t PROGMEM device_qualifier_desc[] = {
 static uint8_t PROGMEM other_speed_descriptor[] = {
     9,                  // bLength;
     USB_DT_OTHER_SPEED_CONFIGURATION,  // bDescriptorType;
-    W_TO_B(9),          // wTotalLength
-    1,                  // bNumInterfaces
+    W_TO_B(CONFIG1_DESC_SIZE),  // wTotalLength
+    2,                  // bNumInterfaces
     1,                  // bConfigurationValue
     0,                  // iConfiguration
-    0xA0,               // bmAttributes
-    50,                 // bMaxPower
+    0x80,               // bmAttributes  = Bus-powered device, no remote wakeup capability
+    0xFA,               // bMaxPower
 };
 
 struct usb_string_descriptor_struct {
@@ -274,7 +283,7 @@ static struct descriptor_list_struct {
     {MKWORD(USB_DT_DEVICE, 0x00), 0x0000, device_descriptor, sizeof(device_descriptor)},
     {MKWORD(USB_DT_CONFIG, 0x00), 0x0000, config1_descriptor, sizeof(config1_descriptor)},
     {MKWORD(USB_DT_DEVICE_QUALIFIER, 0x00), 0x0000, device_qualifier_desc, sizeof(device_qualifier_desc)},
-    {MKWORD(USB_DT_OTHER_SPEED_CONFIGURATION, 0x00), 0x0000, other_speed_descriptor, sizeof(other_speed_descriptor)},
+    {MKWORD(USB_DT_OTHER_SPEED_CONFIGURATION, 0x00), 0x0000, other_speed_descriptor, /* size ok */ sizeof(config1_descriptor)},
     {MKWORD(USB_DT_STRING, 0x00), 0x0000, (const uint8_t *)&string0, 4},
     {MKWORD(USB_DT_STRING, STR_MANUFACTURER_I), 0x0409, (const uint8_t *)&string1, sizeof(STR_MANUFACTURER)},
     {MKWORD(USB_DT_STRING, STR_PRODUCT_I), 0x0409, (const uint8_t *)&string2, sizeof(STR_PRODUCT)}
@@ -418,8 +427,7 @@ ISR(USB_COM_vect)
             for (i=0; ; i++) {
                 if (i >= NUM_DESC_LIST) {
                     UECONX = (1<<STALLRQ)|(1<<EPEN);  //stall
-                    DBG("Unk descriptor!\r\n");
-                    DBGV("wV=%d wI=%d\r\n", wValue, wIndex);
+                    DBGV("Unk desc wV=%d wI=%d\r\n", wValue, wIndex);
                     return;
                 }
                 desc_val = pgm_read_word(list);
@@ -450,6 +458,11 @@ ISR(USB_COM_vect)
                 // send IN packet
                 n = len < ENDPOINT0_SIZE ? len : ENDPOINT0_SIZE;
                 for (i = n; i; i--) {
+                    /* Other speed config is just like config, so why waste pgm space ? */
+                    if(wIndex == MKWORD(USB_DT_OTHER_SPEED_CONFIGURATION, 0) &&
+                       desc_addr - other_speed_descriptor == sizeof(other_speed_descriptor))
+                            desc_addr = config1_descriptor + sizeof(other_speed_descriptor);
+ 
                     UEDATX = pgm_read_byte(desc_addr++);
                 }
                 len -= n;
@@ -523,8 +536,8 @@ ISR(USB_COM_vect)
         }
 #endif
         if (bRequest == USB_REQ_SET_INTERFACE && bmRequestType == 1) {
-            usb_send_in();
             usb_wait_in_ready();
+            usb_send_in();            
             return;
         }
     }

@@ -54,8 +54,8 @@ static uint8_t PROGMEM device_descriptor[] = {
     1                   // bNumConfigurations
 };
 
-#define CONFIG1_DESC_SIZE (9+8+9+13+17+9+7+11+9+14+27+46+9+7)
-#define VC_DESC_SIZE (13+17+9+7+11)
+#define CONFIG1_DESC_SIZE (9+8+9+13+17+9+7+12+9+14+27+46+9+7)
+#define VC_DESC_SIZE (13+17+9+7+12)
 #define VS_DESC_SIZE (14+27+46) 
 static uint8_t PROGMEM config1_descriptor[] = {
     // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
@@ -133,7 +133,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0,                  // iSelector
 
     // Processing Unit Descriptor
-    11,                 // bLength = Size of this descriptor, in bytes.
+    12,                 // bLength = Size of this descriptor, in bytes.
     USB_DT_CS_INTERFACE, // bDescriptorType = USB_DT_CS_INTERFACE
     UVC_VC_PROCESSING_UNIT,// bDescriptorSubtype = VC_PROCESSING_UNIT
     0x04,               // bUnitID = ID of this unit
@@ -142,6 +142,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0x02,               // bControlSize = Size of the bmControls field, in bytes.
     0x01, 0x00,         // bmControls = Brightness control supported
     0x00,               // iProcessing = Unused
+    0x00,               // bmVideoStandards
 
     // Standard VideoStreaming Interface Descriptor - - Operational Alternate Setting 0
     9,                  // bLength = Size of this descriptor, in bytes.
@@ -298,7 +299,7 @@ static volatile uint8_t transmit_flush_timer=0;
 void usb_init(void)
 {
     HW_CONFIG();
-    USB_FREEZE();               // enable USB
+    USB_CONFIG();               // enable USB
     PLL_CONFIG();               // config PLL
     while (!(PLLCSR & (1<<PLOCK))) 
         ;   // wait for PLL lock

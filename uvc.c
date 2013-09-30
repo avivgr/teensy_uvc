@@ -74,7 +74,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0x00,               // bFirstInterface = Interface number of the VideoControl interface for this function 
     0x02,               // bInterfaceCount = Number of contiguous Video interfaces that are for this function 
     CC_VIDEO,           // bFunctionClass = CC_VIDEO 
-    0x03,               // bFunctionSubClass = SC_VIDEO_INTERFACE_COLLECTION 
+    UVC_SC_VIDEO_INTERFACE_COLLECTION,// bFunctionSubClass = SC_VIDEO_INTERFACE_COLLECTION 
     0x00,               // bFunctionProtocol = Not used. Must be set to PC_PROTOCOL_UNDEFINED. 
     STR_PRODUCT_I,      // iFunction = Index to product string descriptor
 
@@ -85,7 +85,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0x00,               // bAlternateSetting = Index of this setting
     0x00,               // bNumEndpoints = 0 endpoints (NO interrupt endpoint)
     CC_VIDEO,           // bInterfaceClass = CC_VIDEO
-    0x01,               // bInterfaceSubClass = SC_VIDEOCONTROL
+    UVC_SC_VIDEOCONTROL,// bInterfaceSubClass = SC_VIDEOCONTROL
     0x00,               // bInterfaceProtocol = Not used. Must be set to PC_PROTOCOL_UNDEFINED.
     STR_PRODUCT_I,      // iInterface = Index to string descriptor that contains the product string 
 
@@ -151,7 +151,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0x00,               // bAlternateSetting = Index of this alternate setting
     0x00,               // bNumEndpoints = 0 endpoints – no bandwidth used
     CC_VIDEO,           // bInterfaceClass = CC_VIDEO
-    0x02,               // bInterfaceSubClass = SC_VIDEOSTREAMING
+    UVC_SC_VIDEOSTREAMING,// bInterfaceSubClass = SC_VIDEOSTREAMING
     0x00,               // bInterfaceProtocol = PC_PROTOCOL_UNDEFINED
     0x00,               // iInterface = Unused
 
@@ -213,7 +213,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0x01,               // bAlternateSetting = Index of this alternate setting
     0x01,               // bNumEndpoints = 0 endpoints – no bandwidth used
     CC_VIDEO,           // bInterfaceClass = CC_VIDEO
-    0x02,               // bInterfaceSubClass = SC_VIDEOSTREAMING
+    UVC_SC_VIDEOSTREAMING,// bInterfaceSubClass = SC_VIDEOSTREAMING
     0x00,               // bInterfaceProtocol = PC_PROTOCOL_UNDEFINED
     0x00,               // iInterface = Unused
 

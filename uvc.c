@@ -91,7 +91,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Class-specific VideoControl Interface Descriptor
     13,                 // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
+    UVC_DT_CS_INTERFACE,// bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VC_HEADER,      // bDescriptorSubType = VC_HEADER subtype
     W_TO_B(0x0110),     // bcdUVC = 0x0110 version 1.1.
     W_TO_B(VC_DESC_SIZE),// wTotalLength = Total size of class-specific descriptors
@@ -101,7 +101,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Input Terminal Descriptor (Camera)
     17,                 // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
+    UVC_DT_CS_INTERFACE,// bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VC_INPUT_TERMINAL,// bDescriptorSubtype = VC_INPUT_TERMINAL subtype
     0x01,               // bTerminalID = ID of this input terminal
     W_TO_B(UVC_ITT_CAMERA),// wTerminalType = ITT_CAMERA type. This terminal is a camera terminal representing the CCD sensor.
@@ -115,7 +115,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Output Terminal Descriptor
     9,                  // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
+    UVC_DT_CS_INTERFACE,// bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VC_OUTPUT_TERMINAL, // bDescriptorSubtype = VC_OUTPUT_TERMINAL
     0x02,               // bTerminalID = ID of this terminal
     W_TO_B(UVC_TT_STREAMING),// wTerminalType = TT_STREAMING type. This terminal is a USB streaming terminal.
@@ -125,7 +125,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     
     // Selector Unit Terminal Descriptor
     7,                  // bLength                
-    USB_DT_CS_INTERFACE,// bDescriptorType        
+    UVC_DT_CS_INTERFACE,// bDescriptorType        
     UVC_VC_SELECTOR_UNIT,// bDescriptorSubtype      (SELECTOR_UNIT)
     0x03,               // bUnitID                
     1,                  // bNrInPins              
@@ -134,7 +134,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Processing Unit Descriptor
     12,                 // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_INTERFACE, // bDescriptorType = USB_DT_CS_INTERFACE
+    UVC_DT_CS_INTERFACE, // bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VC_PROCESSING_UNIT,// bDescriptorSubtype = VC_PROCESSING_UNIT
     0x04,               // bUnitID = ID of this unit
     0x03,               // bSourceID = This input pin of this unit is connected to the output pin of unit with ID 1.
@@ -157,7 +157,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Class-specific VideoStreaming Header Descriptor (Input)
     14,                 // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_INTERFACE,// bDescriptorType = USB_DT_CS_INTERFACE
+    UVC_DT_CS_INTERFACE,// bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VS_INPUT_HEADER,// bDescriptorSubtype = VS_INPUT_HEADER.
     0x01,               // bNumFormats = One format descriptor follows.
     W_TO_B(VS_DESC_SIZE),// wTotalLength = Total size of class-specific VideoStreaming interface descriptors
@@ -172,7 +172,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Class-specific VideoStreaming Format Descriptor
     27,                 // bLength = Size of this descriptor, in bytes.
-    USB_DT_CS_INTERFACE,        // bDescriptorType = USB_DT_CS_INTERFACE
+    UVC_DT_CS_INTERFACE,        // bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VS_FORMAT_UNCOMPRESSED, // bDescriptorSubtype = UVC_VS_FORMAT_UNCOMPRESSED
     1,                  // bFormatIndex         
     1,              // bNumFrameDescriptors
@@ -189,7 +189,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
 
     // Class-specific VideoStreaming Frame Descriptor
     46,                 // bLength                
-    USB_DT_CS_INTERFACE,// bDescriptorType        
+    UVC_DT_CS_INTERFACE,// bDescriptorType        
     UVC_VS_FRAME_UNCOMPRESSED,// bDescriptorSubtype     
     1,                  // bFrameIndex            
     0x01,               // bmCapabilities

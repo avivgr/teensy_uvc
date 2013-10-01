@@ -56,7 +56,14 @@ static uint8_t PROGMEM device_descriptor[] = {
 
 #define CONFIG1_DESC_SIZE (9+8+9+13+17+9+7+12+9+14+27+46+9+7)
 #define VC_DESC_SIZE (13+17+9+7+12)
-#define VS_DESC_SIZE (14+27+46) 
+#define VS_DESC_SIZE (14+27+46)
+
+/* Terminal IDs */
+#define INPUT_TERMINAL_ID 0x01
+#define OUTPUT_TERMINAL_ID 0x02
+#define SU_TERMINAL_ID 0x03
+#define PU_TERMINAL_ID 0x04
+
 static uint8_t PROGMEM config1_descriptor[] = {
     // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
     9,                  // bLength;
@@ -103,7 +110,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     17,                 // bLength = Size of this descriptor, in bytes.
     UVC_DT_CS_INTERFACE,// bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VC_INPUT_TERMINAL,// bDescriptorSubtype = VC_INPUT_TERMINAL subtype
-    0x01,               // bTerminalID = ID of this input terminal
+    INPUT_TERMINAL_ID,  // bTerminalID = ID of this input terminal
     W_TO_B(UVC_ITT_CAMERA),// wTerminalType = ITT_CAMERA type. This terminal is a camera terminal representing the CCD sensor.
     0x00,               // bAssocTerminal = No association
     0x00,               // iTerminal = Unused
@@ -117,27 +124,27 @@ static uint8_t PROGMEM config1_descriptor[] = {
     9,                  // bLength = Size of this descriptor, in bytes.
     UVC_DT_CS_INTERFACE,// bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VC_OUTPUT_TERMINAL, // bDescriptorSubtype = VC_OUTPUT_TERMINAL
-    0x02,               // bTerminalID = ID of this terminal
+    OUTPUT_TERMINAL_ID, // bTerminalID = ID of this terminal
     W_TO_B(UVC_TT_STREAMING),// wTerminalType = TT_STREAMING type. This terminal is a USB streaming terminal.
     0x00,               // bAssocTerminal = No association
-    0x04,               // bSourceID = The input pin of this unit is connected to the output pin of unit 3.
+    PU_TERMINAL_ID,     // bSourceID = The input pin of this unit is connected to the output pin of this unit.
     0x00,               // iTerminal = Unused
     
     // Selector Unit Terminal Descriptor
     7,                  // bLength                
     UVC_DT_CS_INTERFACE,// bDescriptorType        
     UVC_VC_SELECTOR_UNIT,// bDescriptorSubtype      (SELECTOR_UNIT)
-    0x03,               // bUnitID                
+    SU_TERMINAL_ID,     // bUnitID                
     1,                  // bNrInPins              
-    0x01,               // baSource( 0)           
+    INPUT_TERMINAL_ID,  // baSource( 0)           
     0,                  // iSelector
 
     // Processing Unit Descriptor
     12,                 // bLength = Size of this descriptor, in bytes.
     UVC_DT_CS_INTERFACE, // bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VC_PROCESSING_UNIT,// bDescriptorSubtype = VC_PROCESSING_UNIT
-    0x04,               // bUnitID = ID of this unit
-    0x03,               // bSourceID = This input pin of this unit is connected to the output pin of unit with ID 1.
+    PU_TERMINAL_ID,     // bUnitID = ID of this unit
+    SU_TERMINAL_ID,     // bSourceID = This input pin of this unit is connected to the output pin of other unit.
     0x00, 0x00,         // wMaxMultiplier = unused
     0x02,               // bControlSize = Size of the bmControls field, in bytes.
     0x01, 0x00,         // bmControls = Brightness control supported
@@ -163,7 +170,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     W_TO_B(VS_DESC_SIZE),// wTotalLength = Total size of class-specific VideoStreaming interface descriptors
     UVC_TX_ENDPOINT|0x80, // bEndpointAddress = Address of the isochronous endpoint used for video data
     0x00,               // bmInfo = No dynamic format change supported
-    0x02,               // bTerminalLink = This VideoStreaming interface supplies terminal ID 2 (Output Terminal).
+    OUTPUT_TERMINAL_ID, // bTerminalLink = This VideoStreaming interface supplies terminal ID 2 (Output Terminal).
     0x01,               // bStillCaptureMethod = Device supports still image capture method 1.
     0x00,               // bTriggerSupport = Hardware trigger supported for still image capture
     0x00,               // bTriggerUsage = Hardware trigger should initiate a still image capture.

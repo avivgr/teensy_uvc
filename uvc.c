@@ -8,7 +8,7 @@
 #include "uvc.h"
 
 #define DBG(x) uart_print(x)
-char _buff[32];
+char _buff[64];
 #define DBGV(format, ...) \
     snprintf_P(_buff, sizeof(_buff)-1, PSTR(format), __VA_ARGS__);\
     uart_print_S(_buff);
@@ -175,7 +175,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     UVC_DT_CS_INTERFACE,        // bDescriptorType = UVC_DT_CS_INTERFACE
     UVC_VS_FORMAT_UNCOMPRESSED, // bDescriptorSubtype = UVC_VS_FORMAT_UNCOMPRESSED
     1,                  // bFormatIndex         
-    1,              // bNumFrameDescriptors
+    1,                  // bNumFrameDescriptors
     0x59, 0x55, 0x59, 0x32, // guidFormat
     0x00, 0x00, 0x10, 0x00,
     0x80, 0x00, 0x00, 0xaa, 
@@ -542,6 +542,6 @@ ISR(USB_COM_vect)
             return;
         }
     }
-    DBGV("?Req %d\r\n", bRequest);
+    DBGV("?Req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
     UECONX = (1<<STALLRQ) | (1<<EPEN);  // stall
 }

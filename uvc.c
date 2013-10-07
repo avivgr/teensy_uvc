@@ -302,6 +302,35 @@ static struct descriptor_list_struct {
 };
 #define NUM_DESC_LIST (sizeof(descriptor_list)/sizeof(struct descriptor_list_struct))
 
+#define VSPC_HINT_dwFrameInterval (1<<0)
+#define VSPC_HINT_wKeyFrameRate (1<<1)
+#define VSPC_HINT_wPFrameRate (1<<2)
+#define VSPC_HINT_wCompQuality (1<<3)
+#define VSPC_HINT_wCompWindowSize (1<<4)
+
+#define VSPC_FINFO_FID_REQUIRED (1<<0)
+#define VSPC_FINFO_EOF (1<<1)
+/* 34 bytes */
+struct vs_probe_commit
+{
+    uint16_t bmHint;            // Bitfield indicating what fields shall be kept fixed
+    uint8_t  bFormatIndex;      // Video format index from a format descriptor.
+    uint8_t  bFrameIndex;       // Video frame index from a frame descriptor.
+    uint32_t dwFrameInterval;   // Frame interval in 100 ns units. 
+    uint16_t wKeyFrameRate;     // Key frame rate in key-frame per video-frame units.
+    uint16_t wPFrameRate;       // PFrame rate in PFrame/key frame units.
+    uint16_t wCompQuality;      // Compression quality control in abstract units 0-10000 (highest).
+    uint16_t wCompWindowSize;   // Window size for average bit rate control.
+    uint16_t wDelay;            // Internal interface latency (ms) from data capture to presentation on USB.
+    uint32_t dwMaxVideoFrameSize;// Maximum video frame or codec-specific segment size in bytes.   
+    uint32_t dwMaxPayloadTransferSize;// maximum number of i/o bytes the device handle in a single payload 
+    uint32_t dwClockFrequency;  // The device clock frequency in Hz
+    uint8_t  bmFramingInfo;     // Bitfield control
+    uint8_t  bPreferedVersion;  // The preferred payload format version 
+    uint8_t  bMinVersion;       // The min payload format version
+    uint8_t  bMaxVersion;       // The max payload format version
+};
+
 // zero when we are not configured, non-zero when enumerated
 static volatile uint8_t usb_configuration=0;
 static volatile uint8_t transmit_flush_timer=0;
@@ -573,7 +602,7 @@ static inline uint8_t pu_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wI
 
 static inline uint8_t in_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
 {
-    uint8_t cs = MSB(wValue);
+    //uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
     DBGV("in %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
@@ -596,7 +625,7 @@ static inline uint8_t in_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wI
 
 static inline uint8_t out_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
 {
-    uint8_t cs = MSB(wValue);
+    //uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
     DBGV("out %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
@@ -649,7 +678,7 @@ static inline uint8_t videoc_req(uint8_t bRequest, uint16_t wValue, uint16_t wIn
 }
 static inline uint8_t videos_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
 {
-    uint8_t cs = MSB(wValue);
+    //uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
     DBGV("vs %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
@@ -864,7 +893,8 @@ ISR(USB_COM_vect)
         if(bmRequestType == 162) {
             DBG("get_XXX_e\r\n");
         }
+        DBGV("? %x V=%x I=%x L=%x\r\n", bRequest, wValue, wIndex, wLength);
     }
-    DBGV("? %x V=%x I=%x L=%x\r\n", bRequest, wValue, wIndex, wLength);
-    UECONX = (1<<STALLRQ) | (1<<EPEN);  // stall
+
+    usb_stall();
 }

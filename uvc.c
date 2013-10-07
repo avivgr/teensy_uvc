@@ -13,8 +13,6 @@ char _buff[64];
     snprintf_P(_buff, sizeof(_buff)-1, PSTR(format), __VA_ARGS__);\
     uart_print_S(_buff);
 
-
-
 #define STR_MANUFACTURER    L"Acme"
 #define STR_MANUFACTURER_I  1
 #define STR_PRODUCT     L"Teensy UVC Camera"
@@ -64,6 +62,9 @@ static uint8_t PROGMEM device_descriptor[] = {
 #define SU_TERMINAL_ID 0x03
 #define PU_TERMINAL_ID 0x04
 
+#define VIDEOC_IFACE 0x00
+#define VIDEOS_IFACE 0x01
+
 static uint8_t PROGMEM config1_descriptor[] = {
     // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
     9,                  // bLength;
@@ -88,7 +89,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     // Standard VideoControl Interface Descriptor
     9,                  // bLength = Size of this descriptor, in bytes.
     USB_DT_INTERFACE,   // bDescriptorType = INTERFACE descriptor type
-    0x00,               // bInterfaceNumber = Index of this interface
+    VIDEOC_IFACE,       // bInterfaceNumber = Index of this interface
     0x00,               // bAlternateSetting = Index of this setting
     0x00,               // bNumEndpoints = 0 endpoints (NO interrupt endpoint)
     CC_VIDEO,           // bInterfaceClass = CC_VIDEO
@@ -154,7 +155,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     // Standard VideoStreaming Interface Descriptor - - Operational Alternate Setting 0
     9,                  // bLength = Size of this descriptor, in bytes.
     USB_DT_INTERFACE,   // bDescriptorType = INTERFACE descriptor type
-    0x01,               // bInterfaceNumber = Index of this interface
+    VIDEOS_IFACE,       // bInterfaceNumber = Index of this interface
     0x00,               // bAlternateSetting = Index of this alternate setting
     0x00,               // bNumEndpoints = 0 endpoints – no bandwidth used
     CC_VIDEO,           // bInterfaceClass = CC_VIDEO
@@ -216,7 +217,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     // Standard VS Interface Descriptor - Operational Alternate Setting 1
     9,                  // bLength = Size of this descriptor, in bytes.
     USB_DT_INTERFACE,   // bDescriptorType = INTERFACE descriptor type
-    0x01,               // bInterfaceNumber = Index of this interface
+    VIDEOS_IFACE,       // bInterfaceNumber = Index of this interface
     0x01,               // bAlternateSetting = Index of this alternate setting
     0x01,               // bNumEndpoints = 0 endpoints – no bandwidth used
     CC_VIDEO,           // bInterfaceClass = CC_VIDEO
@@ -302,6 +303,28 @@ static struct descriptor_list_struct {
 static volatile uint8_t usb_configuration=0;
 static volatile uint8_t transmit_flush_timer=0;
 
+uint8_t last_error = UVC_ERR_SUCCESS;
+
+#define DEFINE_UVC_CONTROL(name, type, _min, _max, _res, __len, _def, _info_flags) \
+type name = _def;\
+const uint8_t name##_len = __len;\
+static struct name##_ctl_info_ {\
+    type min;\
+    type max;\
+    type res;\
+    type len;\
+    type def;\
+    uint8_t info_flags;\
+} PROGMEM name##_ctl_info = {\
+    _min, _max, _res, __len, _def, _info_flags \
+}
+
+#define CTL_CALL(name, _bRequest,  _wLength)\
+    ctl_req(_bRequest, (uint8_t *)&name, (const uint8_t *)& name##_ctl_info, \
+            name##_len, _wLength)
+
+DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 2, 50, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
+
 // initialize USB
 void usb_init(void)
 {
@@ -317,7 +340,7 @@ void usb_init(void)
     sei();
 }
 
-uint8_t usb_configured(void)
+static inline uint8_t usb_configured(void)
 {
     return usb_configuration;
 }
@@ -395,6 +418,247 @@ ISR(USB_GEN_vect)
     }
 }
 
+static uint8_t ctl_req(uint8_t bRequest, uint8_t *ctl, const uint8_t *ctl_info, uint8_t ctl_len, uint16_t wLength)
+{
+    uint8_t *wptr;
+    const uint8_t *rptr;
+    uint8_t len, i, n;
+    uint8_t write = 0;
+    uint8_t pgmem = 0;
+
+    switch(bRequest) {
+    case UVC_REQ_SET_CUR:
+        len = (uint8_t)wLength;
+        wptr = ctl;
+        write = 1;
+        break;
+    case UVC_REQ_GET_CUR:
+        len = (uint8_t)wLength;
+        rptr = ctl;
+        break;
+    case UVC_REQ_GET_MIN:
+        len = (uint8_t)wLength;
+        rptr = ctl_info;
+        pgmem = 1;
+        break;
+    case UVC_REQ_GET_MAX:
+        len = (uint8_t)wLength;
+        rptr = ctl_info + (1 * ctl_len);
+        pgmem = 1;
+        break;
+    case UVC_REQ_GET_RES:
+        len = (uint8_t)wLength;
+        rptr = ctl_info + (2 * ctl_len);
+        pgmem = 1;
+        break;
+    case UVC_REQ_GET_LEN:
+        len = (uint8_t)wLength;
+        rptr = ctl_info + (3 * ctl_len);
+        pgmem = 1;
+        break;
+    case UVC_REQ_GET_DEF:
+        len = (uint8_t)wLength;
+        rptr = ctl_info + (4 * ctl_len);
+        pgmem = 1;
+        break;
+    case UVC_REQ_GET_INFO:
+        len = 1;
+        rptr = ctl_info + (5 * ctl_len);
+        pgmem = 1;
+        break;
+    default:
+       return UVC_ERR_INVALID_REQUEST;
+    }
+
+    if(write) {
+        do {
+            usb_wait_receive_out();
+            n = len < ENDPOINT0_SIZE ? len : ENDPOINT0_SIZE;
+            for(i = 0; i < n; i++) {
+                *wptr = UEDATX;
+                wptr++;
+            }
+            len -= n;       
+            usb_ack_out();
+            usb_send_in();
+        }  while (len || n == ENDPOINT0_SIZE);    
+    } else {
+        do {
+            usb_wait_in_ready();
+            n = len < ENDPOINT0_SIZE ? len : ENDPOINT0_SIZE;
+            for (i = n; i; i--) {
+                if(pgmem)
+                    UEDATX = pgm_read_byte(rptr++);
+                else
+                    UEDATX = *rptr++;
+            }   
+            len -= n;
+            usb_send_in();
+        } while (len || n == ENDPOINT0_SIZE);
+    }
+
+    return UVC_ERR_SUCCESS;
+}
+
+static inline uint8_t su_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
+{
+    uint8_t cs = MSB(wValue);
+    uint8_t unit;
+    uint8_t ret = UVC_ERR_SUCCESS;
+
+    DBGV("su_term_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+
+    return ret;
+    
+    if(cs != UVC_SU_INPUT_SELECT_CONTROL || wLength != 1) {        
+        return UVC_ERR_INVALID_CONTROL;
+    }
+    
+    switch(bRequest) {
+        case UVC_REQ_SET_CUR:
+            usb_wait_receive_out();
+            unit = UEDATX;
+            if(unit != 1)
+                ret = UVC_ERR_OUT_OF_RANGE;
+            usb_ack_out();
+            usb_send_in();
+            break;
+        case UVC_REQ_GET_CUR :
+        case UVC_REQ_GET_MIN :
+        case UVC_REQ_GET_MAX :
+        case UVC_REQ_GET_RES :
+            usb_wait_in_ready();
+            UEDATX = 1;
+            usb_send_in();
+            break;
+        case UVC_REQ_GET_INFO:
+            usb_wait_in_ready();
+            UEDATX = GINFO_SUPPORT_GET | GINFO_SUPPORT_SET;
+            usb_send_in();            
+            break;
+        default:
+            ret = UVC_ERR_INVALID_REQUEST;
+    }
+
+    return ret;    
+}
+
+static inline uint8_t pu_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
+{
+    uint8_t cs = MSB(wValue);
+    uint8_t ret = UVC_ERR_SUCCESS;
+    
+    DBGV("pu_term_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+
+    switch(cs) {
+    case UVC_PU_BRIGHTNESS_CONTROL:
+        ret = CTL_CALL(brightness, bRequest, wLength);
+        break;
+    default:
+        ret = UVC_ERR_INVALID_CONTROL;
+    }
+
+    return ret;      
+}
+
+static inline uint8_t in_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
+{
+    uint8_t cs = MSB(wValue);
+    uint8_t ret = UVC_ERR_SUCCESS;
+    
+    DBGV("in_term_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+
+    switch(bRequest) {
+        case UVC_REQ_SET_CUR:
+        case UVC_REQ_GET_CUR :
+        case UVC_REQ_GET_MIN :
+        case UVC_REQ_GET_MAX :
+        case UVC_REQ_GET_RES :
+        case UVC_REQ_GET_LEN:
+        case UVC_REQ_GET_INFO:
+        case UVC_REQ_GET_DEF:
+        default:
+            ret = UVC_ERR_INVALID_REQUEST;
+    }    
+
+    return ret;  
+}
+
+static inline uint8_t out_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
+{
+    uint8_t cs = MSB(wValue);
+    uint8_t ret = UVC_ERR_SUCCESS;
+    
+    DBGV("out_term_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+
+    switch(bRequest) {
+        case UVC_REQ_SET_CUR:
+        case UVC_REQ_GET_CUR :
+        case UVC_REQ_GET_MIN :
+        case UVC_REQ_GET_MAX :
+        case UVC_REQ_GET_RES :
+        case UVC_REQ_GET_LEN:
+        case UVC_REQ_GET_INFO:
+        case UVC_REQ_GET_DEF:
+        default:
+            ret = UVC_ERR_INVALID_REQUEST;
+    }    
+
+    return ret;  
+}
+
+static inline uint8_t videoc_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
+{
+    uint8_t cs = MSB(wValue);
+    uint8_t ret = UVC_ERR_SUCCESS;
+
+    DBGV("videoc_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+
+    switch(cs) {
+    case UVC_VC_REQUEST_ERROR_CODE_CONTROL:
+        switch(bRequest) {
+            case UVC_REQ_GET_CUR:
+                usb_wait_in_ready();
+                UEDATX = last_error;
+                usb_send_in();
+                break;
+            case UVC_REQ_GET_INFO:
+                usb_wait_in_ready();
+                UEDATX = GINFO_SUPPORT_GET;
+                usb_send_in();            
+                break;            
+            default:
+                ret = UVC_ERR_INVALID_REQUEST;
+        }
+        break;
+    default:
+        ret = UVC_ERR_INVALID_CONTROL;
+    } 
+
+    return ret;  
+}
+static inline uint8_t videos_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
+{
+    uint8_t cs = MSB(wValue);
+    uint8_t ret = UVC_ERR_SUCCESS;
+    
+    DBGV("videos_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+
+    switch(bRequest) {
+        case UVC_REQ_SET_CUR:
+        case UVC_REQ_GET_CUR :
+        case UVC_REQ_GET_MIN :
+        case UVC_REQ_GET_MAX :
+        case UVC_REQ_GET_RES :
+        case UVC_REQ_GET_LEN:
+        case UVC_REQ_GET_INFO:
+        case UVC_REQ_GET_DEF:
+        default:
+            ret = UVC_ERR_INVALID_REQUEST;
+    }    
+
+    return ret;  
+}
 // USB Endpoint Interrupt - endpoint 0 is handled here.  The
 // other endpoints are manipulated by the user-callable
 // functions, and the start-of-frame interrupt.
@@ -498,6 +762,7 @@ ISR(USB_COM_vect)
                     UECFG1X = pgm_read_byte(cfg++);
                 }
             }
+            /* Reset all endpoints except ep 0 */
             UERST = 0x1E;
             UERST = 0;
             DBG("Configured!\r\n");
@@ -545,8 +810,54 @@ ISR(USB_COM_vect)
 #endif
         if (bRequest == USB_REQ_SET_INTERFACE && bmRequestType == 1) {
             usb_wait_in_ready();
-            usb_send_in();            
+            usb_send_in();
             return;
+        }
+
+        if((bRequest == UVC_REQ_SET_CUR && bmRequestType == 33) ||
+           (bmRequestType == 161))
+        {
+            uint8_t unitid = MSB(wIndex);
+            uint8_t iface = LSB(wIndex);
+
+            switch(unitid)
+            {
+            case INPUT_TERMINAL_ID :
+                last_error = in_term_req(bRequest, wValue, wIndex, wLength);
+                break;
+            case OUTPUT_TERMINAL_ID:
+                last_error = out_term_req(bRequest, wValue, wIndex, wLength);
+                break;
+            case SU_TERMINAL_ID :
+                last_error = su_term_req(bRequest, wValue, wIndex, wLength);
+                break;
+            case PU_TERMINAL_ID :
+                last_error = pu_term_req(bRequest, wValue, wIndex, wLength);
+                break;
+            case 0:
+                switch(iface) {
+                    case VIDEOC_IFACE:
+                        last_error = videoc_req(bRequest, wValue, wIndex, wLength);
+                        break;
+                    case VIDEOS_IFACE:
+                        last_error = videos_req(bRequest, wValue, wIndex, wLength);
+                        break;
+                    default:
+                        last_error = UVC_ERR_INVALID_REQUEST;
+                }
+                break;
+            default:
+                last_error = UVC_ERR_INVALID_REQUEST;
+            }
+            DBGV("last_err=%x\r\n", last_error);
+            if(last_error == UVC_ERR_SUCCESS)
+                return;
+        }
+        if(bRequest == UVC_REQ_SET_CUR && bmRequestType == 34) {
+            DBG("set_cur_e\r\n");
+        }
+        if(bmRequestType == 162) {
+            DBG("get_XXX_e\r\n");
         }
     }
     DBGV("?Req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);

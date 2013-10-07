@@ -234,6 +234,23 @@
 #define UVC_VS_UPDATE_FRAME_SEGMENT_CONTROL 0x08
 #define UVC_VS_SYNCH_DELAY_CONTROL 0x09
 
+/* GET_INFO response bits */
+#define GINFO_SUPPORT_GET (1<<0)
+#define GINFO_SUPPORT_SET (1<<1)
+#define GINFO_DISABLED (1<<2)
+#define GINFO_AUTO_CTL (1<<3)
+#define GINFO_ASYNC_CTL (1<<4)
+
+/* Request Error Code Control */
+#define UVC_ERR_SUCCESS 0x00
+#define UVC_ERR_NOT_READY 0x01
+#define UVC_ERR_WRONG_STATE 0x02
+#define UVC_ERR_POWER 0x03
+#define UVC_ERR_OUT_OF_RANGE 0x04
+#define UVC_ERR_INVALID_UNIT 0x05
+#define UVC_ERR_INVALID_CONTROL 0x06
+#define UVC_ERR_INVALID_REQUEST 0x07
+
 // General AVR
 #define BAUD_RATE 38400
 #define LED_CONFIG      (DDRD |= (1<<6))

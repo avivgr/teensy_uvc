@@ -838,11 +838,11 @@ ISR(USB_COM_vect)
                         last_error = videos_req(bRequest, wValue, wIndex, wLength);
                         break;
                     default:
-                        last_error = UVC_ERR_INVALID_REQUEST;
+                        last_error = UVC_ERR_INVALID_UNIT;
                 }
                 break;
             default:
-                last_error = UVC_ERR_INVALID_REQUEST;
+                last_error = UVC_ERR_INVALID_UNIT;
             }
             DBGV(" =%x\r\n", last_error);
             if(last_error == UVC_ERR_SUCCESS)

@@ -1,3 +1,6 @@
+/*
+    Author: Aviv Greenberg - www.linkedin.com/in/avivgr/
+*/    
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>

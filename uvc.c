@@ -306,8 +306,14 @@ static struct descriptor_list_struct {
 static volatile uint8_t usb_configuration=0;
 static volatile uint8_t transmit_flush_timer=0;
 
-uint8_t last_error = UVC_ERR_SUCCESS;
+static uint8_t last_error = UVC_ERR_SUCCESS;
 
+/* Helper macros for UVC controls.
+   You can use DEFINE_UVC_CONTROL to define a uvc control and greatly simplify
+   access through needed GET_XXX / SET_CUR uvc requests. The read-only fields
+   (.e.g MIN/MAX etc) will be stored in program memory to save RAM.
+   Use CTL_CALL to dispatch uvc requests for the control.
+*/   
 #define DEFINE_UVC_CONTROL(name, type, _min, _max, _res, __len, _def, _info_flags) \
 type name = _def;\
 const uint8_t name##_len = __len;\
@@ -326,6 +332,7 @@ static struct name##_ctl_info_ {\
     ctl_req(_bRequest, (uint8_t *)&name, (const uint8_t *)& name##_ctl_info, \
             name##_len, _wLength)
 
+/* Control definitions */
 DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 2, 50, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
 
 // initialize USB

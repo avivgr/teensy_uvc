@@ -9,7 +9,7 @@ uint8_t uart_getchar(void);
 uint8_t uart_available(void);
 void uart_print_P(const char *str);
 void uart_print_S(char *str);
-
+void uart_flush(void);
 #define uart_print(s) uart_print_P(PSTR(s))
 
 #endif

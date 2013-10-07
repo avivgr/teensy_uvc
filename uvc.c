@@ -13,13 +13,13 @@ char _buff[64];
     snprintf_P(_buff, sizeof(_buff)-1, PSTR(format), __VA_ARGS__);\
     uart_print_S(_buff);
 
-#define STR_MANUFACTURER    L"Acme"
-#define STR_MANUFACTURER_I  1
-#define STR_PRODUCT     L"Teensy UVC Camera"
+#define STR_MANUFACTURER L"Acme"
+#define STR_MANUFACTURER_I 1
+#define STR_PRODUCT L"Teensy UVC Camera"
 #define STR_PRODUCT_I 2
 
-#define VENDOR_ID       0x046e //Microsoft Corp.
-#define PRODUCT_ID      0x375d //LifeCam Cinema
+#define VENDOR_ID       0x046e
+#define PRODUCT_ID      0x375d
 
 // Endpoint config
 #define ENDPOINT0_SIZE  16
@@ -384,7 +384,7 @@ int main(void)
     _delay_ms(1000);
 
     while (1) {
-        
+        _delay_ms(1);        
     }
 }
 
@@ -471,6 +471,7 @@ static uint8_t ctl_req(uint8_t bRequest, uint8_t *ctl, const uint8_t *ctl_info, 
     }
 
     if(write) {
+        //DBGV("\r\nwp=%p l=%x pg=%x\r\n", wptr, len, pgmem);
         do {
             usb_wait_receive_out();
             n = len < ENDPOINT0_SIZE ? len : ENDPOINT0_SIZE;
@@ -483,6 +484,7 @@ static uint8_t ctl_req(uint8_t bRequest, uint8_t *ctl, const uint8_t *ctl_info, 
             usb_send_in();
         }  while (len || n == ENDPOINT0_SIZE);    
     } else {
+        //DBGV("\r\nrp=%p l=%x pg=%x\r\n", rptr, len, pgmem);
         do {
             usb_wait_in_ready();
             n = len < ENDPOINT0_SIZE ? len : ENDPOINT0_SIZE;
@@ -506,9 +508,7 @@ static inline uint8_t su_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wI
     uint8_t unit;
     uint8_t ret = UVC_ERR_SUCCESS;
 
-    DBGV("su_term_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
-
-    return ret;
+    DBGV("su %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
     
     if(cs != UVC_SU_INPUT_SELECT_CONTROL || wLength != 1) {        
         return UVC_ERR_INVALID_CONTROL;
@@ -548,8 +548,8 @@ static inline uint8_t pu_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wI
     uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
-    DBGV("pu_term_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
-
+    DBGV("pu %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
+   
     switch(cs) {
     case UVC_PU_BRIGHTNESS_CONTROL:
         ret = CTL_CALL(brightness, bRequest, wLength);
@@ -566,7 +566,7 @@ static inline uint8_t in_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wI
     uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
-    DBGV("in_term_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+    DBGV("in %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
 
     switch(bRequest) {
         case UVC_REQ_SET_CUR:
@@ -589,7 +589,7 @@ static inline uint8_t out_term_req(uint8_t bRequest, uint16_t wValue, uint16_t w
     uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
-    DBGV("out_term_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+    DBGV("out %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
 
     switch(bRequest) {
         case UVC_REQ_SET_CUR:
@@ -612,7 +612,7 @@ static inline uint8_t videoc_req(uint8_t bRequest, uint16_t wValue, uint16_t wIn
     uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
 
-    DBGV("videoc_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+    DBGV("vc %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
 
     switch(cs) {
     case UVC_VC_REQUEST_ERROR_CODE_CONTROL:
@@ -642,7 +642,7 @@ static inline uint8_t videos_req(uint8_t bRequest, uint16_t wValue, uint16_t wIn
     uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
-    DBGV("videos_req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+    DBGV("vs %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
 
     switch(bRequest) {
         case UVC_REQ_SET_CUR:
@@ -662,11 +662,6 @@ static inline uint8_t videos_req(uint8_t bRequest, uint16_t wValue, uint16_t wIn
 // USB Endpoint Interrupt - endpoint 0 is handled here.  The
 // other endpoints are manipulated by the user-callable
 // functions, and the start-of-frame interrupt.
-//
-// USB Endpoint Interrupt - endpoint 0 is handled here.  The
-// other endpoints are manipulated by the user-callable
-// functions, and the start-of-frame interrupt.
-//
 ISR(USB_COM_vect)
 {
     uint8_t intbits;
@@ -831,7 +826,7 @@ ISR(USB_COM_vect)
             case SU_TERMINAL_ID :
                 last_error = su_term_req(bRequest, wValue, wIndex, wLength);
                 break;
-            case PU_TERMINAL_ID :
+            case PU_TERMINAL_ID:
                 last_error = pu_term_req(bRequest, wValue, wIndex, wLength);
                 break;
             case 0:
@@ -849,7 +844,7 @@ ISR(USB_COM_vect)
             default:
                 last_error = UVC_ERR_INVALID_REQUEST;
             }
-            DBGV("last_err=%x\r\n", last_error);
+            DBGV(" =%x\r\n", last_error);
             if(last_error == UVC_ERR_SUCCESS)
                 return;
         }
@@ -860,6 +855,6 @@ ISR(USB_COM_vect)
             DBG("get_XXX_e\r\n");
         }
     }
-    DBGV("?Req %x wV=%x wI=%x wL=%x\r\n", bRequest, wValue, wIndex, wLength);
+    DBGV("? %x V=%x I=%x L=%x\r\n", bRequest, wValue, wIndex, wLength);
     UECONX = (1<<STALLRQ) | (1<<EPEN);  // stall
 }

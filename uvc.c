@@ -363,6 +363,14 @@ static struct name##_ctl_info_ {\
 
 /* Control definitions */
 DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 2, 50, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
+DEFINE_UVC_CONTROL(probe_commit, struct vs_probe_commit,
+    /* min */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* max */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* res */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    34,
+    /* def */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    GINFO_SUPPORT_GET | GINFO_SUPPORT_SET,
+    );
 
 // initialize USB
 void usb_init(void)

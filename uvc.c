@@ -351,7 +351,7 @@ const uint8_t PROGMEM name##_len = __len;\
 static struct name##_ctl_info_ {\
     type min;\
     type max;\
-    type res;\    
+    type res;\
     type def;\
     uint8_t info_flags;\
 } PROGMEM name##_ctl_info = {\
@@ -365,10 +365,10 @@ static struct name##_ctl_info_ {\
 /* Control definitions */
 DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 50, 2, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
 DEFINE_UVC_CONTROL(probe_commit, struct vs_probe_commit,
-    /* min */ PC_INIT(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
-    /* max */ PC_INIT(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
-    /* res */ PC_INIT(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
-    /* def */ PC_INIT(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+    /* min */ PC_INIT(0,1,1, 333333,0,0,0,0,0,153600L,UVC_TX_SIZE,16000000L,0,0,0,0),
+    /* max */ PC_INIT(0,1,1,1333333,0,0,0,0,0,153600L,UVC_TX_SIZE,16000000L,0,0,0,0),
+    /* res */ PC_INIT(0,1,1, 333333,0,0,0,0,0,        0,          0,       0,0,0,0,0),
+    /* def */ PC_INIT(0,1,1, 333333,0,0,0,0,0,153600L,UVC_TX_SIZE,16000000L,0,0,0,0),
     34,
     GINFO_SUPPORT_GET | GINFO_SUPPORT_SET
     );
@@ -507,7 +507,7 @@ static uint8_t ctl_req(uint8_t bRequest, uint8_t *ctl, const uint8_t *ctl_info, 
             rptr = &ctl_len;
             break;
         case 2:
-            rptr = &ctl_len16;
+            rptr = (const uint8_t *)&ctl_len16;
             break;
         default:
             return UVC_ERR_INVALID_REQUEST;

@@ -334,10 +334,11 @@ struct vs_probe_commit
     {p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16}
 
 // zero when we are not configured, non-zero when enumerated
-static volatile uint8_t usb_configuration=0;
-static volatile uint8_t transmit_flush_timer=0;
-
+static volatile uint8_t usb_configuration = 0;
+static volatile uint8_t transmit_flush_timer = 0;
 static uint8_t last_error = UVC_ERR_SUCCESS;
+static volatile uint8_t videos_alt_setting = 0;
+static volatile uint8_t streaming = 0;
 
 /* Helper macros for UVC controls.
    You can use DEFINE_UVC_CONTROL to define a uvc control and greatly simplify
@@ -415,6 +416,11 @@ static inline void usb_stall(void)
     UECONX = (1<<STALLRQ)|(1<<EPEN);
 }
 
+void send_frame()
+{
+
+}
+
 int main(void)
 {
     CPU_PRESCALE(0);  // run at 16 MHz
@@ -431,8 +437,11 @@ int main(void)
     // and do whatever it does to actually be ready for input
     _delay_ms(1000);
 
-    while (1) {
-        _delay_ms(1);        
+    while (1) {        
+        if(streaming)
+        {            
+            send_frame();
+        }
     }
 }
 
@@ -689,25 +698,38 @@ static inline uint8_t videoc_req(uint8_t bRequest, uint16_t wValue, uint16_t wIn
 
     return ret;  
 }
+
+static void adjust_after_probe()
+{
+
+}
+
+static int verify_after_commit()
+{
+    return UVC_ERR_SUCCESS;
+}
+
 static inline uint8_t videos_req(uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
 {
-    //uint8_t cs = MSB(wValue);
+    uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
     DBGV("vs %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
 
-    switch(bRequest) {
-        case UVC_REQ_SET_CUR:
-        case UVC_REQ_GET_CUR :
-        case UVC_REQ_GET_MIN :
-        case UVC_REQ_GET_MAX :
-        case UVC_REQ_GET_RES :
-        case UVC_REQ_GET_LEN:
-        case UVC_REQ_GET_INFO:
-        case UVC_REQ_GET_DEF:
-        default:
-            ret = UVC_ERR_INVALID_REQUEST;
-    }    
+    switch(cs) {
+    case UVC_VS_PROBE_CONTROL:
+        ret = CTL_CALL(probe_commit, bRequest, wLength);
+        if(bRequest == UVC_REQ_SET_CUR && ret == UVC_ERR_SUCCESS)
+            adjust_after_probe();
+        break;
+    case UVC_VS_COMMIT_CONTROL:
+        ret = CTL_CALL(probe_commit, bRequest, wLength);
+        if(bRequest == UVC_REQ_SET_CUR && ret == UVC_ERR_SUCCESS)
+            ret = verify_after_commit();
+        break;
+    default:
+        ret = UVC_ERR_INVALID_REQUEST;
+    }        
 
     return ret;  
 }
@@ -856,6 +878,10 @@ ISR(USB_COM_vect)
         }
 #endif
         if (bRequest == USB_REQ_SET_INTERFACE && bmRequestType == 1) {
+            if(wIndex == VIDEOS_IFACE) {
+                videos_alt_setting = wValue;
+                streaming = videos_alt_setting > 0;
+            }
             usb_wait_in_ready();
             usb_send_in();
             return;

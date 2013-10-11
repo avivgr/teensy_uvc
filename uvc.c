@@ -330,6 +330,8 @@ struct vs_probe_commit
     uint8_t  bMinVersion;       // The min payload format version
     uint8_t  bMaxVersion;       // The max payload format version
 };
+#define PC_INIT(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16)\
+    {p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16}
 
 // zero when we are not configured, non-zero when enumerated
 static volatile uint8_t usb_configuration=0;
@@ -343,18 +345,17 @@ static uint8_t last_error = UVC_ERR_SUCCESS;
    (.e.g MIN/MAX etc) will be stored in program memory to save RAM.
    Use CTL_CALL to dispatch uvc requests for the control.
 */   
-#define DEFINE_UVC_CONTROL(name, type, _min, _max, _res, __len, _def, _info_flags) \
+#define DEFINE_UVC_CONTROL(name, type, _min, _max, _res, _def, __len, _info_flags) \
 type name = _def;\
-const uint8_t name##_len = __len;\
+const uint8_t PROGMEM name##_len = __len;\
 static struct name##_ctl_info_ {\
     type min;\
     type max;\
-    type res;\
-    type len;\
+    type res;\    
     type def;\
     uint8_t info_flags;\
 } PROGMEM name##_ctl_info = {\
-    _min, _max, _res, __len, _def, _info_flags \
+    _min, _max, _res, _def, _info_flags \
 }
 
 #define CTL_CALL(name, _bRequest,  _wLength)\
@@ -362,14 +363,14 @@ static struct name##_ctl_info_ {\
             name##_len, _wLength)
 
 /* Control definitions */
-DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 2, 50, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
+DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 50, 2, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
 DEFINE_UVC_CONTROL(probe_commit, struct vs_probe_commit,
-    /* min */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* max */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* res */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* min */ PC_INIT(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+    /* max */ PC_INIT(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+    /* res */ PC_INIT(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+    /* def */ PC_INIT(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
     34,
-    /* def */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    GINFO_SUPPORT_GET | GINFO_SUPPORT_SET,
+    GINFO_SUPPORT_GET | GINFO_SUPPORT_SET
     );
 
 // initialize USB
@@ -472,45 +473,49 @@ static uint8_t ctl_req(uint8_t bRequest, uint8_t *ctl, const uint8_t *ctl_info, 
     uint8_t len, i, n;
     uint8_t write = 0;
     uint8_t pgmem = 0;
+    uint16_t ctl_len16 = ctl_len;
 
+    len = (uint8_t)wLength;
+    
     switch(bRequest) {
     case UVC_REQ_SET_CUR:
-        len = (uint8_t)wLength;
         wptr = ctl;
         write = 1;
         break;
     case UVC_REQ_GET_CUR:
-        len = (uint8_t)wLength;
         rptr = ctl;
         break;
     case UVC_REQ_GET_MIN:
-        len = (uint8_t)wLength;
         rptr = ctl_info;
         pgmem = 1;
         break;
     case UVC_REQ_GET_MAX:
-        len = (uint8_t)wLength;
         rptr = ctl_info + (1 * ctl_len);
         pgmem = 1;
         break;
     case UVC_REQ_GET_RES:
-        len = (uint8_t)wLength;
         rptr = ctl_info + (2 * ctl_len);
         pgmem = 1;
         break;
-    case UVC_REQ_GET_LEN:
-        len = (uint8_t)wLength;
+    case UVC_REQ_GET_DEF:
         rptr = ctl_info + (3 * ctl_len);
         pgmem = 1;
         break;
-    case UVC_REQ_GET_DEF:
-        len = (uint8_t)wLength;
-        rptr = ctl_info + (4 * ctl_len);
-        pgmem = 1;
+    case UVC_REQ_GET_LEN:
+        switch(len) {
+        case 1:
+            rptr = &ctl_len;
+            break;
+        case 2:
+            rptr = &ctl_len16;
+            break;
+        default:
+            return UVC_ERR_INVALID_REQUEST;
+        }
         break;
     case UVC_REQ_GET_INFO:
         len = 1;
-        rptr = ctl_info + (5 * ctl_len);
+        rptr = ctl_info + (4 * ctl_len);
         pgmem = 1;
         break;
     default:

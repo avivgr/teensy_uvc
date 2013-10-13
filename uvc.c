@@ -399,7 +399,7 @@ static inline void usb_wait_in_ready(void)
 {
     while (!(UEINTX & (1<<TXINI))) ;
 }
-static inline void usb_send_in(void)
+static inline void usb_ack_in(void)
 {
     UEINTX = ~(1<<TXINI);
 }
@@ -416,7 +416,7 @@ static inline void usb_stall(void)
     UECONX = (1<<STALLRQ)|(1<<EPEN);
 }
 
-void send_frame()
+void send_frame(void)
 {
 
 }
@@ -542,7 +542,7 @@ static uint8_t ctl_req(uint8_t bRequest, uint8_t *ctl, const uint8_t *ctl_info, 
             }
             len -= n;       
             usb_ack_out();
-            usb_send_in();
+            usb_ack_in();
         }  while (len || n == ENDPOINT0_SIZE);    
     } else {
         //DBGV("\r\nrp=%p l=%x pg=%x\r\n", rptr, len, pgmem);
@@ -556,7 +556,7 @@ static uint8_t ctl_req(uint8_t bRequest, uint8_t *ctl, const uint8_t *ctl_info, 
                     UEDATX = *rptr++;
             }   
             len -= n;
-            usb_send_in();
+            usb_ack_in();
         } while (len || n == ENDPOINT0_SIZE);
     }
 
@@ -582,7 +582,7 @@ static inline uint8_t su_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wI
             if(unit != 1)
                 ret = UVC_ERR_OUT_OF_RANGE;
             usb_ack_out();
-            usb_send_in();
+            usb_ack_in();
             break;
         case UVC_REQ_GET_CUR :
         case UVC_REQ_GET_MIN :
@@ -590,12 +590,12 @@ static inline uint8_t su_term_req(uint8_t bRequest, uint16_t wValue, uint16_t wI
         case UVC_REQ_GET_RES :
             usb_wait_in_ready();
             UEDATX = 1;
-            usb_send_in();
+            usb_ack_in();
             break;
         case UVC_REQ_GET_INFO:
             usb_wait_in_ready();
             UEDATX = GINFO_SUPPORT_GET | GINFO_SUPPORT_SET;
-            usb_send_in();            
+            usb_ack_in();            
             break;
         default:
             ret = UVC_ERR_INVALID_REQUEST;
@@ -681,12 +681,12 @@ static inline uint8_t videoc_req(uint8_t bRequest, uint16_t wValue, uint16_t wIn
             case UVC_REQ_GET_CUR:
                 usb_wait_in_ready();
                 UEDATX = last_error;
-                usb_send_in();
+                usb_ack_in();
                 break;
             case UVC_REQ_GET_INFO:
                 usb_wait_in_ready();
                 UEDATX = GINFO_SUPPORT_GET;
-                usb_send_in();            
+                usb_ack_in();            
                 break;            
             default:
                 ret = UVC_ERR_INVALID_REQUEST;
@@ -699,13 +699,15 @@ static inline uint8_t videoc_req(uint8_t bRequest, uint16_t wValue, uint16_t wIn
     return ret;  
 }
 
-static void adjust_after_probe()
+static void adjust_after_probe(void)
 {
+    DBG("after probe\r\n");
 
 }
 
-static int verify_after_commit()
+static int verify_after_commit(void)
 {
+    DBG("commit!\r\n");
     return UVC_ERR_SUCCESS;
 }
 
@@ -807,12 +809,12 @@ ISR(USB_COM_vect)
                     UEDATX = pgm_read_byte(desc_addr++);
                 }
                 len -= n;
-                usb_send_in();
+                usb_ack_in();
             } while (len || n == ENDPOINT0_SIZE);
             return;
         }
         if (bRequest == USB_REQ_SET_ADDRESS) {
-            usb_send_in();
+            usb_ack_in();
             usb_wait_in_ready();
             UDADDR = wValue | (1<<ADDEN);
             return;
@@ -820,7 +822,7 @@ ISR(USB_COM_vect)
         
         if (bRequest == USB_REQ_SET_CONFIGURATION && bmRequestType == 0) {
             usb_configuration = wValue;
-            usb_send_in();
+            usb_ack_in();
             cfg = endpoint_config_table;
             for (i=1; i<5; i++) {
                 UENUM = i;
@@ -840,7 +842,7 @@ ISR(USB_COM_vect)
         if (bRequest == USB_REQ_GET_CONFIGURATION && bmRequestType == 0x80) {
             usb_wait_in_ready();
             UEDATX = usb_configuration;
-            usb_send_in();
+            usb_ack_in();
             return;
         }
         if (bRequest == USB_REQ_GET_STATUS) {
@@ -855,7 +857,7 @@ ISR(USB_COM_vect)
 #endif
             UEDATX = i;
             UEDATX = 0;
-            usb_send_in();
+            usb_ack_in();
             return;
         }
 #ifdef SUPPORT_ENDPOINT_HALT
@@ -864,7 +866,7 @@ ISR(USB_COM_vect)
              bmRequestType == 0x02 && wValue == 0) {
                 i = wIndex & 0x7F;
                 if (i >= 1 && i <= MAX_ENDPOINT) {
-                    usb_send_in();
+                    usb_ack_in();
                     UENUM = i;
                     if (bRequest == SET_FEATURE) {
                         UECONX = (1<<STALLRQ)|(1<<EPEN);
@@ -881,9 +883,10 @@ ISR(USB_COM_vect)
             if(wIndex == VIDEOS_IFACE) {
                 videos_alt_setting = wValue;
                 streaming = videos_alt_setting > 0;
+                DBGV("strm=%d\r\n", streaming);
             }
             usb_wait_in_ready();
-            usb_send_in();
+            usb_ack_in();
             return;
         }
 

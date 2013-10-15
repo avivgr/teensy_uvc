@@ -31,6 +31,10 @@ char _buff[64];
 #define UVC_TX_BUFFER   EP_DOUBLE_BUFFER
 #define UVC_TX_SIZE 256
 
+#define HEIGHT 240L
+#define WIDTH 320L
+#define FRAME_SIZE (HEIGHT*WIDTH*2)
+
 static const uint8_t PROGMEM endpoint_config_table[] = {
     1, EP_TYPE_ISOCHRONOUS_IN, EP_SIZE(UVC_TX_SIZE) | UVC_TX_BUFFER,
     0,
@@ -204,8 +208,8 @@ static uint8_t PROGMEM config1_descriptor[] = {
     UVC_VS_FRAME_UNCOMPRESSED,// bDescriptorSubtype     
     1,                  // bFrameIndex            
     0x01,               // bmCapabilities
-    W_TO_B(640),        // wWidth 
-    W_TO_B(480),        // wHeight  
+    W_TO_B(WIDTH),      // wWidth 
+    W_TO_B(HEIGHT),     // wHeight  
     DW_TO_B(36864000),  // dwMinBitRate              
     DW_TO_B(147456000), // dwMaxBitRate              
     DW_TO_B(614400),    // dwMaxVideoFrameBufferSize
@@ -232,9 +236,9 @@ static uint8_t PROGMEM config1_descriptor[] = {
     7,                  // bLength = Size of this descriptor, in bytes.
     USB_DT_ENDPOINT,    // bDescriptorType = ENDPOINT
     UVC_TX_ENDPOINT|0x80,// bEndpointAddress = IN endpoint 2
-    0x05,               // bmAttributes = Isochronous transfer type. 
+    0x01,               // bmAttributes = Isochronous transfer type. 
     W_TO_B(UVC_TX_SIZE),// wMaxPacketSize = Max packet size
-    1,                  // bInterval = One frame interval BUGBUG what means??
+    10,                 // bInterval = One frame interval BUGBUG what means??
 };
 
 static uint8_t PROGMEM device_qualifier_desc[] = {
@@ -339,6 +343,7 @@ static volatile uint8_t transmit_flush_timer = 0;
 static uint8_t last_error = UVC_ERR_SUCCESS;
 static volatile uint8_t videos_alt_setting = 0;
 static volatile uint8_t streaming = 0;
+static volatile uint8_t fid = 0;
 
 /* Helper macros for UVC controls.
    You can use DEFINE_UVC_CONTROL to define a uvc control and greatly simplify
@@ -366,10 +371,10 @@ static struct name##_ctl_info_ {\
 /* Control definitions */
 DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 50, 2, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
 DEFINE_UVC_CONTROL(probe_commit, struct vs_probe_commit,
-    /* min */ PC_INIT(0,1,1, 333333,0,0,0,0,0,153600L,UVC_TX_SIZE,16000000L,0,0,0,0),
-    /* max */ PC_INIT(0,1,1,1333333,0,0,0,0,0,153600L,UVC_TX_SIZE,16000000L,0,0,0,0),
-    /* res */ PC_INIT(0,1,1, 333333,0,0,0,0,0,        0,          0,       0,0,0,0,0),
-    /* def */ PC_INIT(0,1,1, 333333,0,0,0,0,0,153600L,UVC_TX_SIZE,16000000L,0,0,0,0),
+    /* min */ PC_INIT(0,1,1, 333333,0,0,0,0,0,FRAME_SIZE,FRAME_SIZE,16000000L,0,0,0,0),
+    /* max */ PC_INIT(0,1,1,1333333,0,0,0,0,0,FRAME_SIZE,FRAME_SIZE,16000000L,0,0,0,0),
+    /* res */ PC_INIT(0,1,1, 333333,0,0,0,0,0,         0,         0,        0,0,0,0,0),
+    /* def */ PC_INIT(0,1,1, 333333,0,0,0,0,0,FRAME_SIZE,FRAME_SIZE,16000000L,0,0,0,0),
     34,
     GINFO_SUPPORT_GET | GINFO_SUPPORT_SET
     );
@@ -393,7 +398,6 @@ static inline uint8_t usb_configured(void)
 {
     return usb_configuration;
 }
-
 // Misc functions to wait for ready and send/receive packets
 static inline void usb_wait_in_ready(void)
 {
@@ -401,7 +405,23 @@ static inline void usb_wait_in_ready(void)
 }
 static inline void usb_ack_in(void)
 {
-    UEINTX = ~(1<<TXINI);
+    UEINTX &= ~(1<<TXINI);
+}
+/* Cuases hw to switch banks */
+static inline void usb_ack_bank(void)
+{
+    //UEINTX = ~((int8_t)(1<<FIFOCON));
+    UEINTX &= ~((1 << TXINI) | (1 << FIFOCON));
+}
+static inline uint8_t usb_rw_allowed(void)
+{
+    return UEINTX & (1<<RWAL);
+}
+static inline uint16_t usb_available(void)
+{
+    uint16_t ret = UEBCHX;
+    ret = (ret << 8) | UEBCLX;
+    return 240;
 }
 static inline void usb_wait_receive_out(void)
 {
@@ -416,9 +436,71 @@ static inline void usb_stall(void)
     UECONX = (1<<STALLRQ)|(1<<EPEN);
 }
 
+#define UVC_PHI_DEF (UVC_PHI_EOF | UVC_PHI_EOH | (fid&1))
+uint8_t uggly = 0;
+uint8_t uggly2 = 0;
+static inline void _send_frame(void)
+{
+    uint16_t avail, obank;
+    uint16_t h,w,n;
+
+    if(!usb_rw_allowed())
+        return;
+
+    usb_wait_in_ready();
+    avail = usb_available();
+    if(avail < 2) {
+        if(uggly++ == 0)
+            DBG("Q??\r\n");
+        return;
+    }
+
+    if(uggly2++ == 0)
+        DBG("I??\r\n");
+
+    /* Write header */
+    UEDATX = 2; // write header len
+    UEDATX = UVC_PHI_DEF; // write header bmHeaderInfo bitmap
+    fid = !fid; // flip frame id bit
+    avail -= 2;
+
+    for(h=0; h < 240; h++) {
+        w = 320*2;
+        do {
+            n=MIN(avail, w);
+            if(n == 0) {
+                DBG("W??\r\n");
+                return;
+            }
+            while(n) {
+                UEDATX=0xcc;                
+                n--;
+            }
+            w-=n;
+            avail-=n;
+            if(!avail) {                
+                usb_ack_bank();
+                usb_wait_in_ready();
+                obank = avail = usb_available();
+            }            
+        } while(w > 0);
+    }
+
+    if(obank != avail) {
+        usb_ack_bank();
+    }
+}
+
 void send_frame(void)
 {
+    uint8_t intr_state;
 
+    intr_state = SREG;
+    cli();
+    UENUM = UVC_TX_ENDPOINT;
+    _send_frame();
+    SREG = intr_state;
+    sei();
 }
 
 int main(void)
@@ -716,7 +798,7 @@ static inline uint8_t videos_req(uint8_t bRequest, uint16_t wValue, uint16_t wIn
     uint8_t cs = MSB(wValue);
     uint8_t ret = UVC_ERR_SUCCESS;
     
-    DBGV("vs %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
+    //DBGV("vs %x V=%x I=%x L=%x", bRequest, wValue, wIndex, wLength);
 
     switch(cs) {
     case UVC_VS_PROBE_CONTROL:
@@ -882,7 +964,15 @@ ISR(USB_COM_vect)
         if (bRequest == USB_REQ_SET_INTERFACE && bmRequestType == 1) {
             if(wIndex == VIDEOS_IFACE) {
                 videos_alt_setting = wValue;
-                streaming = videos_alt_setting > 0;
+                if(!streaming && videos_alt_setting > 0) {
+                    /* start streaming */
+                    fid = 0;
+                    streaming = 1;
+                }
+                else if(streaming && videos_alt_setting == 0) {
+                    /* stop streaming */                    
+                    streaming = 0;
+                }
                 DBGV("strm=%d\r\n", streaming);
             }
             usb_wait_in_ready();

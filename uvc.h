@@ -35,6 +35,7 @@
 #define LSW(n) (n & 0xffff)
 #define MSW(n) ((n >> 16) & 0xffff)
 #define MKWORD(m,l) ((m << 8) | l)
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
 
 #define W_TO_B(w) LSB(w), MSB(w)
 #define DW_TO_B(dw) LSB(LSW(dw)),MSB(LSW(dw)),LSB(MSW(dw)), MSB(MSW(dw))
@@ -250,6 +251,15 @@
 #define UVC_ERR_INVALID_UNIT 0x05
 #define UVC_ERR_INVALID_CONTROL 0x06
 #define UVC_ERR_INVALID_REQUEST 0x07
+
+// Payload header info bits
+#define UVC_PHI_FID (1<<0) // Frame ID
+#define UVC_PHI_EOF (1<<1) // End of Frame
+#define UVC_PHI_PST (1<<2) // Presentation Time
+#define UVC_PHI_CSR (1<<3) // Source Clock Reference
+#define UVC_PHI_STL (1<<5) // Still Image
+#define UVC_PHI_ERR (1<<6) // Error
+#define UVC_PHI_EOH (1<<7) // End of header
 
 // General AVR
 #define BAUD_RATE 38400

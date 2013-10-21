@@ -11,6 +11,11 @@
 #include "uvc.h"
 
 #define DBG(x) uart_print(x)
+#define DBG_ONCE(x) {   \
+    static uint8_t __cnt = 0;\
+    if(__cnt == 0) {uart_print(x);__cnt++;} \
+}
+
 char _buff[64];
 #define DBGV(format, ...) \
     snprintf_P(_buff, sizeof(_buff)-1, PSTR(format), __VA_ARGS__);\
@@ -33,7 +38,7 @@ char _buff[64];
 
 #define HEIGHT 240L
 #define WIDTH 320L
-#define FRAME_SIZE (HEIGHT*WIDTH*2)
+#define FRAME_SIZE (HEIGHT*WIDTH*2)+2
 
 static const uint8_t PROGMEM endpoint_config_table[] = {
     1, EP_TYPE_ISOCHRONOUS_IN, EP_SIZE(UVC_TX_SIZE) | UVC_TX_BUFFER,
@@ -238,7 +243,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     UVC_TX_ENDPOINT|0x80,// bEndpointAddress = IN endpoint 2
     0x01,               // bmAttributes = Isochronous transfer type. 
     W_TO_B(UVC_TX_SIZE),// wMaxPacketSize = Max packet size
-    10,                 // bInterval = One frame interval BUGBUG what means??
+    0,                 // bInterval = One frame interval BUGBUG what means??
 };
 
 static uint8_t PROGMEM device_qualifier_desc[] = {
@@ -341,7 +346,7 @@ struct vs_probe_commit
 static volatile uint8_t usb_configuration = 0;
 static volatile uint8_t transmit_flush_timer = 0;
 static uint8_t last_error = UVC_ERR_SUCCESS;
-static volatile uint8_t videos_alt_setting = 0;
+static volatile uint16_t videos_alt_setting = 0;
 static volatile uint8_t streaming = 0;
 static volatile uint8_t fid = 0;
 
@@ -369,12 +374,12 @@ static struct name##_ctl_info_ {\
             name##_len, _wLength)
 
 /* Control definitions */
-DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 50, 2, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
+DEFINE_UVC_CONTROL(brightness, int16_t, 0, 255, 1, 50, 2, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
 DEFINE_UVC_CONTROL(probe_commit, struct vs_probe_commit,
-    /* min */ PC_INIT(0,1,1, 333333,0,0,0,0,0,FRAME_SIZE,FRAME_SIZE,16000000L,0,0,0,0),
-    /* max */ PC_INIT(0,1,1,1333333,0,0,0,0,0,FRAME_SIZE,FRAME_SIZE,16000000L,0,0,0,0),
-    /* res */ PC_INIT(0,1,1, 333333,0,0,0,0,0,         0,         0,        0,0,0,0,0),
-    /* def */ PC_INIT(0,1,1, 333333,0,0,0,0,0,FRAME_SIZE,FRAME_SIZE,16000000L,0,0,0,0),
+    /* min */ PC_INIT(0,1,1, 333333,0,0,0,0,0,FRAME_SIZE,UVC_TX_SIZE,16000000L,0,0,0,0),
+    /* max */ PC_INIT(0,1,1,1333333,0,0,0,0,0,FRAME_SIZE,UVC_TX_SIZE,16000000L,0,0,0,0),
+    /* res */ PC_INIT(0,1,1, 333333,0,0,0,0,0,         0,          0,        0,0,0,0,0),
+    /* def */ PC_INIT(0,1,1, 333333,0,0,0,0,0,FRAME_SIZE,UVC_TX_SIZE,16000000L,0,0,0,0),
     34,
     GINFO_SUPPORT_GET | GINFO_SUPPORT_SET
     );
@@ -405,13 +410,13 @@ static inline void usb_wait_in_ready(void)
 }
 static inline void usb_ack_in(void)
 {
-    UEINTX &= ~(1<<TXINI);
+    UEINTX = ~(1<<TXINI);
 }
 /* Cuases hw to switch banks */
 static inline void usb_ack_bank(void)
 {
     //UEINTX = ~((int8_t)(1<<FIFOCON));
-    UEINTX &= ~((1 << TXINI) | (1 << FIFOCON));
+    UEINTX = (uint8_t)~((1 << FIFOCON)|(1<<TXINI));
 }
 static inline uint8_t usb_rw_allowed(void)
 {
@@ -421,7 +426,7 @@ static inline uint16_t usb_available(void)
 {
     uint16_t ret = UEBCHX;
     ret = (ret << 8) | UEBCLX;
-    return 240;
+    return UVC_TX_SIZE-ret;
 }
 static inline void usb_wait_receive_out(void)
 {
@@ -437,58 +442,49 @@ static inline void usb_stall(void)
 }
 
 #define UVC_PHI_DEF (UVC_PHI_EOF | UVC_PHI_EOH | (fid&1))
-uint8_t uggly = 0;
-uint8_t uggly2 = 0;
 static inline void _send_frame(void)
 {
-    uint16_t avail, obank;
-    uint16_t h,w,n;
-
-    if(!usb_rw_allowed())
-        return;
-
+    uint16_t h,w,lastw;
+    uint8_t write_hdr = 1;
+    uint8_t color = MSB(brightness);    
+    
     usb_wait_in_ready();
-    avail = usb_available();
-    if(avail < 2) {
-        if(uggly++ == 0)
-            DBG("Q??\r\n");
-        return;
-    }
 
-    if(uggly2++ == 0)
-        DBG("I??\r\n");
+    DBG_ONCE("A\r\n");
+    
 
-    /* Write header */
-    UEDATX = 2; // write header len
-    UEDATX = UVC_PHI_DEF; // write header bmHeaderInfo bitmap
-    fid = !fid; // flip frame id bit
-    avail -= 2;
-
+    DBG_ONCE("H\r\n");
     for(h=0; h < 240; h++) {
-        w = 320*2;
+        w = lastw = 320*2;
         do {
-            n=MIN(avail, w);
-            if(n == 0) {
-                DBG("W??\r\n");
-                return;
-            }
-            while(n) {
-                UEDATX=0xcc;                
-                n--;
-            }
-            w-=n;
-            avail-=n;
-            if(!avail) {                
+            if(!usb_rw_allowed()) {
                 usb_ack_bank();
                 usb_wait_in_ready();
-                obank = avail = usb_available();
+                lastw = w;
+                write_hdr = 1;
+                DBG_ONCE("K\r\n");
+            } else {
+                if(write_hdr) {
+                    /* Write header */
+                    UEDATX = 2; // write header len
+                    if(h==239 && w < UVC_TX_SIZE)
+                        UEDATX = UVC_PHI_EOF | UVC_PHI_EOH | (fid&1); 
+                    else
+                       UEDATX = UVC_PHI_EOH | (fid&1); 
+                    fid = !fid; // flip frame id bit
+                    write_hdr = 0;
+                }
+                UEDATX=color;                
+                w--;
+                DBG_ONCE("S\r\n");
             }            
         } while(w > 0);
     }
 
-    if(obank != avail) {
+    if(lastw != w) {
         usb_ack_bank();
     }
+    DBG_ONCE("F\r\n");
 }
 
 void send_frame(void)
@@ -962,21 +958,14 @@ ISR(USB_COM_vect)
         }
 #endif
         if (bRequest == USB_REQ_SET_INTERFACE && bmRequestType == 1) {
-            if(wIndex == VIDEOS_IFACE) {
-                videos_alt_setting = wValue;
-                if(!streaming && videos_alt_setting > 0) {
-                    /* start streaming */
-                    fid = 0;
-                    streaming = 1;
-                }
-                else if(streaming && videos_alt_setting == 0) {
-                    /* stop streaming */                    
-                    streaming = 0;
-                }
-                DBGV("strm=%d\r\n", streaming);
-            }
             usb_wait_in_ready();
             usb_ack_in();
+            if(wIndex == VIDEOS_IFACE) {
+                videos_alt_setting = (wValue);
+                streaming = wValue > 0;
+                fid = 0;
+                DBGV("strm=%d\r\n", streaming);
+            }
             return;
         }
 

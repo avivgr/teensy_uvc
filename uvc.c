@@ -47,7 +47,7 @@ static const uint8_t PROGMEM endpoint_config_table[] = {
     0
 };
 
-static uint8_t PROGMEM device_descriptor[] = {
+static const uint8_t PROGMEM device_descriptor[] = {
     18,                 // bLength
     USB_DT_DEVICE,      // bDescriptorType
     W_TO_B(0x0200),     // bcdUSB
@@ -77,7 +77,7 @@ static uint8_t PROGMEM device_descriptor[] = {
 #define VIDEOC_IFACE 0x00
 #define VIDEOS_IFACE 0x01
 
-static uint8_t PROGMEM config1_descriptor[] = {
+static const uint8_t PROGMEM config1_descriptor[] = {
     // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
     9,                  // bLength;
     USB_DT_CONFIG,      // bDescriptorType;
@@ -246,7 +246,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     0,                 // bInterval = One frame interval BUGBUG what means??
 };
 
-static uint8_t PROGMEM device_qualifier_desc[] = {
+static const uint8_t PROGMEM device_qualifier_desc[] = {
     10,                  // bLength            
     USB_DT_DEVICE_QUALIFIER, // bDescriptorType    
     W_TO_B(0x0200),      // bcdUSB 
@@ -258,7 +258,7 @@ static uint8_t PROGMEM device_qualifier_desc[] = {
     0                    // Device Status: 0x0000(Bus Powered)
 };
 
-static uint8_t PROGMEM other_speed_descriptor[] = {
+static const uint8_t PROGMEM other_speed_descriptor[] = {
     9,                  // bLength;
     USB_DT_OTHER_SPEED_CONFIGURATION,  // bDescriptorType;
     W_TO_B(CONFIG1_DESC_SIZE),  // wTotalLength
@@ -275,19 +275,19 @@ struct usb_string_descriptor_struct {
     int16_t wString[];
 };
 
-static struct usb_string_descriptor_struct PROGMEM string0 = {
+static const struct usb_string_descriptor_struct PROGMEM string0 = {
     4,
     USB_DT_STRING,
     {0x0409}
 };
 
-static struct usb_string_descriptor_struct PROGMEM string1 = {
+static const struct usb_string_descriptor_struct PROGMEM string1 = {
     sizeof(STR_MANUFACTURER),
     USB_DT_STRING,
     STR_MANUFACTURER
 };
 
-static struct usb_string_descriptor_struct PROGMEM string2 = {
+static const struct usb_string_descriptor_struct PROGMEM string2 = {
     sizeof(STR_PRODUCT),
     USB_DT_STRING,
     STR_PRODUCT
@@ -295,7 +295,7 @@ static struct usb_string_descriptor_struct PROGMEM string2 = {
 
 // This table defines which descriptor data is sent for each specific
 // request from the host (in wValue and wIndex).
-static struct descriptor_list_struct {
+static const struct descriptor_list_struct {
     uint16_t    wValue;
     uint16_t    wIndex;
     const uint8_t   *addr;
@@ -359,7 +359,7 @@ static volatile uint8_t fid = 0;
 #define DEFINE_UVC_CONTROL(name, type, _min, _max, _res, _def, __len, _info_flags) \
 type name = _def;\
 const uint8_t PROGMEM name##_len = __len;\
-static struct name##_ctl_info_ {\
+static const struct name##_ctl_info_ {\
     type min;\
     type max;\
     type res;\

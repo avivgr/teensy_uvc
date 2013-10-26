@@ -38,7 +38,7 @@ char _buff[64];
 
 #define HEIGHT 240L
 #define WIDTH 320L
-#define FRAME_SIZE (HEIGHT*WIDTH*2)+2
+#define FRAME_SIZE (HEIGHT*WIDTH*3/2)
 
 static const uint8_t PROGMEM endpoint_config_table[] = {
     1, EP_TYPE_ISOCHRONOUS_IN, EP_SIZE(UVC_TX_SIZE) | UVC_TX_BUFFER,
@@ -196,11 +196,11 @@ static uint8_t PROGMEM config1_descriptor[] = {
     UVC_VS_FORMAT_UNCOMPRESSED, // bDescriptorSubtype = UVC_VS_FORMAT_UNCOMPRESSED
     1,                  // bFormatIndex         
     1,                  // bNumFrameDescriptors
-    0x59, 0x55, 0x59, 0x32, // guidFormat
+    'N', 'V', '1', '2', // guidFormat
     0x00, 0x00, 0x10, 0x00,
     0x80, 0x00, 0x00, 0xaa, 
     0x00, 0x38, 0x9b, 0x71, 
-    16,                 // bBitsPerPixel      
+    12,                 // bBitsPerPixel      
     1,                  // bDefaultFrameIndex 
     0,                  // bAspectRatioX      
     0,                  // bAspectRatioY      
@@ -217,7 +217,7 @@ static uint8_t PROGMEM config1_descriptor[] = {
     W_TO_B(HEIGHT),     // wHeight  
     DW_TO_B(36864000),  // dwMinBitRate              
     DW_TO_B(147456000), // dwMaxBitRate              
-    DW_TO_B(614400),    // dwMaxVideoFrameBufferSize
+    DW_TO_B((FRAME_SIZE)),// dwMaxVideoFrameBufferSize
     DW_TO_B(333333),    // dwDefaultFrameInterval   
     5,                  // bFrameIntervalType       
     DW_TO_B(333333),    // dwFrameInterval( 0)      
@@ -446,16 +446,13 @@ static inline void _send_frame(void)
 {
     uint16_t h,w,lastw;
     uint8_t write_hdr = 1;
-    uint8_t color = MSB(brightness);    
+    uint8_t hdr;
+    uint8_t color = LSB(brightness);    
     
     usb_wait_in_ready();
 
-    DBG_ONCE("A\r\n");
-    
-
-    DBG_ONCE("H\r\n");
     for(h=0; h < 240; h++) {
-        w = lastw = 320*2;
+        w = lastw = 320*3/2;
         do {
             if(!usb_rw_allowed()) {
                 usb_ack_bank();
@@ -466,17 +463,15 @@ static inline void _send_frame(void)
             } else {
                 if(write_hdr) {
                     /* Write header */
-                    UEDATX = 2; // write header len
+                    hdr = UVC_PHI_EOH | (fid&1);
                     if(h==239 && w < UVC_TX_SIZE)
-                        UEDATX = UVC_PHI_EOF | UVC_PHI_EOH | (fid&1); 
-                    else
-                       UEDATX = UVC_PHI_EOH | (fid&1); 
-                    fid = !fid; // flip frame id bit
+                        hdr |= UVC_PHI_EOF; 
+                    UEDATX = 2; // write header len
+                    UEDATX = hdr;
                     write_hdr = 0;
                 }
                 UEDATX=color;                
                 w--;
-                DBG_ONCE("S\r\n");
             }            
         } while(w > 0);
     }
@@ -484,6 +479,7 @@ static inline void _send_frame(void)
     if(lastw != w) {
         usb_ack_bank();
     }
+    fid = !fid; // flip frame id bit
     DBG_ONCE("F\r\n");
 }
 

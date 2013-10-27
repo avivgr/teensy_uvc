@@ -36,9 +36,10 @@ char _buff[64];
 #define UVC_TX_BUFFER   EP_DOUBLE_BUFFER
 #define UVC_TX_SIZE 256
 
-#define HEIGHT 240L
-#define WIDTH 320L
-#define FRAME_SIZE (HEIGHT*WIDTH*3/2)
+#define BPP 12
+#define HEIGHT 120L
+#define WIDTH 160L
+#define FRAME_SIZE (HEIGHT*WIDTH*BPP/8)
 
 static const uint8_t PROGMEM endpoint_config_table[] = {
     1, EP_TYPE_ISOCHRONOUS_IN, EP_SIZE(UVC_TX_SIZE) | UVC_TX_BUFFER,
@@ -196,11 +197,11 @@ static const uint8_t PROGMEM config1_descriptor[] = {
     UVC_VS_FORMAT_UNCOMPRESSED, // bDescriptorSubtype = UVC_VS_FORMAT_UNCOMPRESSED
     1,                  // bFormatIndex         
     1,                  // bNumFrameDescriptors
-    'N', 'V', '1', '2', // guidFormat
+    'Y', 'V', '1', '2', // guidFormat
     0x00, 0x00, 0x10, 0x00,
     0x80, 0x00, 0x00, 0xaa, 
     0x00, 0x38, 0x9b, 0x71, 
-    12,                 // bBitsPerPixel      
+    BPP,                // bBitsPerPixel      
     1,                  // bDefaultFrameIndex 
     0,                  // bAspectRatioX      
     0,                  // bAspectRatioY      
@@ -215,10 +216,10 @@ static const uint8_t PROGMEM config1_descriptor[] = {
     0x01,               // bmCapabilities
     W_TO_B(WIDTH),      // wWidth 
     W_TO_B(HEIGHT),     // wHeight  
-    DW_TO_B(36864000),  // dwMinBitRate              
-    DW_TO_B(147456000), // dwMaxBitRate              
+    DW_TO_B(((FRAME_SIZE)*8*1)),// dwMinBitRate              
+    DW_TO_B(((FRAME_SIZE)*8*30)),// dwMaxBitRate              
     DW_TO_B((FRAME_SIZE)),// dwMaxVideoFrameBufferSize
-    DW_TO_B(333333),    // dwDefaultFrameInterval   
+    DW_TO_B(1333333),   // dwDefaultFrameInterval   
     5,                  // bFrameIntervalType       
     DW_TO_B(333333),    // dwFrameInterval( 0)      
     DW_TO_B(500000),    // dwFrameInterval( 1)      
@@ -241,9 +242,9 @@ static const uint8_t PROGMEM config1_descriptor[] = {
     7,                  // bLength = Size of this descriptor, in bytes.
     USB_DT_ENDPOINT,    // bDescriptorType = ENDPOINT
     UVC_TX_ENDPOINT|0x80,// bEndpointAddress = IN endpoint 2
-    0x01,               // bmAttributes = Isochronous transfer type. 
+    0x01 | 12,          // bmAttributes = Isochronous transfer type, Async sync type. 
     W_TO_B(UVC_TX_SIZE),// wMaxPacketSize = Max packet size
-    0,                 // bInterval = One frame interval BUGBUG what means??
+    1,                  // bInterval = One frame interval
 };
 
 static const uint8_t PROGMEM device_qualifier_desc[] = {
@@ -395,7 +396,7 @@ void usb_init(void)
     USB_CONFIG();               // start USB clock
     UDCON = 0;              // enable attach resistor
     usb_configuration = 0;
-    UDIEN = (1<<EORSTE)|(1<<SOFE);
+    UDIEN = (1<<EORSTE);
     sei();
 }
 
@@ -408,15 +409,37 @@ static inline void usb_wait_in_ready(void)
 {
     while (!(UEINTX & (1<<TXINI))) ;
 }
+static inline uint16_t usb_fnum(void)
+{
+    return UDFNUM;
+}
+static inline int usb_wait_in_ready_timeo(uint8_t ms)
+{
+    uint16_t last_fnum = usb_fnum();
+    uint16_t fnum;
+
+    while (1) {
+        if((UEINTX & (1<<TXINI)))
+            return 0;
+
+        fnum = usb_fnum();
+        /* frame advances every 1ms in full speed */
+        if(fnum != last_fnum) {
+            if(--ms == 0)
+                return -1;
+            last_fnum = fnum;
+        }
+    }
+}
 static inline void usb_ack_in(void)
 {
-    UEINTX = ~(1<<TXINI);
+    UEINTX &= ~(1<<TXINI);
 }
 /* Cuases hw to switch banks */
 static inline void usb_ack_bank(void)
 {
     //UEINTX = ~((int8_t)(1<<FIFOCON));
-    UEINTX = (uint8_t)~((1 << FIFOCON)|(1<<TXINI));
+    UEINTX &= (uint8_t)~((1 << FIFOCON));
 }
 static inline uint8_t usb_rw_allowed(void)
 {
@@ -441,7 +464,6 @@ static inline void usb_stall(void)
     UECONX = (1<<STALLRQ)|(1<<EPEN);
 }
 
-#define UVC_PHI_DEF (UVC_PHI_EOF | UVC_PHI_EOH | (fid&1))
 static inline void _send_frame(void)
 {
     uint16_t h,w,lastw;
@@ -451,20 +473,21 @@ static inline void _send_frame(void)
     
     usb_wait_in_ready();
 
-    for(h=0; h < 240; h++) {
-        w = lastw = 320*3/2;
+    for(h=0; h < HEIGHT; h++) {
+        w = lastw = WIDTH*BPP/8;
         do {
             if(!usb_rw_allowed()) {
-                usb_ack_bank();
-                usb_wait_in_ready();
+                usb_ack_bank();                
+                if(usb_wait_in_ready_timeo(10) < 0)                
+                    return;                
+                usb_ack_in();
                 lastw = w;
                 write_hdr = 1;
-                DBG_ONCE("K\r\n");
             } else {
                 if(write_hdr) {
                     /* Write header */
                     hdr = UVC_PHI_EOH | (fid&1);
-                    if(h==239 && w < UVC_TX_SIZE)
+                    if(h==HEIGHT-1 && w < UVC_TX_SIZE)
                         hdr |= UVC_PHI_EOF; 
                     UEDATX = 2; // write header len
                     UEDATX = hdr;
@@ -479,7 +502,7 @@ static inline void _send_frame(void)
     if(lastw != w) {
         usb_ack_bank();
     }
-    fid = !fid; // flip frame id bit
+    fid = ~fid; // flip frame id bit
     DBG_ONCE("F\r\n");
 }
 
@@ -958,8 +981,10 @@ ISR(USB_COM_vect)
             usb_ack_in();
             if(wIndex == VIDEOS_IFACE) {
                 videos_alt_setting = (wValue);
+                if(!streaming && wValue > 0)
+                    fid = 0;
                 streaming = wValue > 0;
-                fid = 0;
+                
                 DBGV("strm=%d\r\n", streaming);
             }
             return;

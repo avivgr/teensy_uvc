@@ -375,7 +375,7 @@ static const struct name##_ctl_info_ {\
             name##_len, _wLength)
 
 /* Control definitions */
-DEFINE_UVC_CONTROL(brightness, int16_t, 0, 255, 1, 50, 2, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
+DEFINE_UVC_CONTROL(brightness, int16_t, 0, 100, 1, 0, 2, GINFO_SUPPORT_GET | GINFO_SUPPORT_SET);
 DEFINE_UVC_CONTROL(probe_commit, struct vs_probe_commit,
     /* min */ PC_INIT(0,1,1, 333333,0,0,0,0,0,FRAME_SIZE,UVC_TX_SIZE,16000000L,0,0,0,0),
     /* max */ PC_INIT(0,1,1,1333333,0,0,0,0,0,FRAME_SIZE,UVC_TX_SIZE,16000000L,0,0,0,0),
@@ -464,17 +464,47 @@ static inline void usb_stall(void)
     UECONX = (1<<STALLRQ)|(1<<EPEN);
 }
 
-static inline void _send_frame(void)
+#define NUM_COLORS 5
+#define COLUMN_WIDTH (WIDTH/NUM_COLORS)
+struct color_info {
+    uint8_t c[NUM_COLORS][3];
+};
+
+const struct color_info colors =
+{{
+              /* Y    U    V */
+    /* white */ {235, 128, 128},
+    /* red   */ { 81,  90, 240},
+    /* green */ {145,  54,  34},
+    /* blue  */ { 41, 240, 110},
+    /* black */ { 16, 128, 128}
+}};
+uint8_t cur_col_offset = 0;
+uint8_t cur_start_col = 0;
+
+static inline uint8_t next_color(uint8_t col)
+{
+    if(col >= NUM_COLORS-1)
+        return 0;
+    else
+        return col+1;
+}
+
+static inline void send_yv12_frame(void)
 {
     uint16_t h,w,lastw;
     uint8_t write_hdr = 1;
     uint8_t hdr;
-    uint8_t color = LSB(brightness);    
+    uint8_t color, colcnt;
+    uint8_t br = LSB(brightness);    
     
     usb_wait_in_ready();
 
+    /* Y plane (h*w bytes) */ 
     for(h=0; h < HEIGHT; h++) {
-        w = lastw = WIDTH*BPP/8;
+        w = lastw = WIDTH;
+        color = cur_start_col;
+        colcnt = COLUMN_WIDTH - cur_col_offset;
         do {
             if(!usb_rw_allowed()) {
                 usb_ack_bank();                
@@ -487,14 +517,85 @@ static inline void _send_frame(void)
                 if(write_hdr) {
                     /* Write header */
                     hdr = UVC_PHI_EOH | (fid&1);
-                    if(h==HEIGHT-1 && w < UVC_TX_SIZE)
+                    UEDATX = 2; // write header len
+                    UEDATX = hdr;
+                    write_hdr = 0;
+                }
+                UEDATX=colors.c[color][0] + br; // Y                
+                w--;
+                if(--colcnt == 0) {
+                    color = next_color(color);
+                    colcnt = COLUMN_WIDTH;
+                }
+            }            
+        } while(w > 0);
+    }
+
+    /* U plane (h/2*w/2 bytes) */ 
+    for(h=0; h < HEIGHT/2; h++) {
+        w = lastw = WIDTH/2;
+        color = cur_start_col;
+        colcnt = COLUMN_WIDTH - cur_col_offset;
+        do {
+            if(!usb_rw_allowed()) {
+                usb_ack_bank();                
+                if(usb_wait_in_ready_timeo(10) < 0)                
+                    return;                
+                usb_ack_in();
+                lastw = w;
+                write_hdr = 1;
+            } else {
+                if(write_hdr) {
+                    /* Write header */
+                    hdr = UVC_PHI_EOH | (fid&1);
+                    UEDATX = 2; // write header len
+                    UEDATX = hdr;
+                    write_hdr = 0;
+                }
+                UEDATX=colors.c[color][1]; // U                
+                w--;
+                if(colcnt <= 2) {
+                    color = next_color(color);
+                    colcnt = COLUMN_WIDTH;
+                } else {
+                   colcnt -= 2; 
+                }
+
+            }            
+        } while(w > 0);
+    }
+
+    /* V plane (h/2*w/2 bytes) */ 
+    for(h=0; h < HEIGHT/2; h++) {
+        w = lastw = WIDTH/2;
+        color = cur_start_col;
+        colcnt = COLUMN_WIDTH - cur_col_offset;
+        do {
+            if(!usb_rw_allowed()) {
+                usb_ack_bank();                
+                if(usb_wait_in_ready_timeo(10) < 0)                
+                    return;                
+                usb_ack_in();
+                lastw = w;
+                write_hdr = 1;
+            } else {
+                if(write_hdr) {
+                    /* Write header */
+                    hdr = UVC_PHI_EOH | (fid&1);
+                    if(h==HEIGHT/2-1 && w < UVC_TX_SIZE)
                         hdr |= UVC_PHI_EOF; 
                     UEDATX = 2; // write header len
                     UEDATX = hdr;
                     write_hdr = 0;
                 }
-                UEDATX=color;                
+                UEDATX=colors.c[color][2]; // V                
                 w--;
+                if(colcnt <= 2) {
+                    color = next_color(color);
+                    colcnt = COLUMN_WIDTH;
+                } else {
+                    colcnt-=2;
+                }
             }            
         } while(w > 0);
     }
@@ -503,7 +604,11 @@ static inline void _send_frame(void)
         usb_ack_bank();
     }
     fid = ~fid; // flip frame id bit
-    DBG_ONCE("F\r\n");
+    cur_col_offset += 10;
+    if(cur_col_offset >= COLUMN_WIDTH) {
+        cur_start_col = next_color(cur_start_col);
+        cur_col_offset = 0;
+    }
 }
 
 void send_frame(void)
@@ -513,7 +618,7 @@ void send_frame(void)
     intr_state = SREG;
     cli();
     UENUM = UVC_TX_ENDPOINT;
-    _send_frame();
+    send_yv12_frame();
     SREG = intr_state;
     sei();
 }
